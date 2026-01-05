@@ -1,0 +1,90 @@
+id: 2c4f3f1a-5cc6-4b6c-9f3e-34b0f3ad9e64
+name: Key Vault public network access or firewall allow enabled
+kind: Scheduled
+description: |
+  'Detects Key Vault configuration changes that enable public network access or set network ACL defaultAction to Allow. These changes can expose secrets/keys/certificates to broader network reachability than intended.'
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+queryFrequency: 15m
+queryPeriod: 15m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - InitialAccess
+  - CredentialAccess
+relevantTechniques:
+  - T1552
+query: |
+  let queryFrequency = 15m;
+  AzureActivity
+  | where ingestion_time() > ago(queryFrequency)
+  | where ActivityStatusValue in~ ("Succeeded","Success","Accepted")
+  | where tolower(OperationNameValue) =~ "microsoft.keyvault/vaults/write"
+  | extend requestBody = tostring(parse_json(Properties).requestbody)
+  | extend request = parse_json(requestBody)
+  | extend kvProps = coalesce(request.properties, request.Properties)
+  | extend publicNetworkAccess = tostring(coalesce(kvProps.publicNetworkAccess, kvProps.PublicNetworkAccess))
+  | extend defaultAction = tostring(coalesce(kvProps.networkAcls.defaultAction, kvProps.networkAcls.DefaultAction))
+  | extend bypass = tostring(coalesce(kvProps.networkAcls.bypass, kvProps.networkAcls.Bypass))
+  | extend IsPublicEnabled = tolower(publicNetworkAccess) == "enabled"
+  | extend IsFirewallAllow = tolower(defaultAction) == "allow"
+  | where IsPublicEnabled or IsFirewallAllow
+  | extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])
+  | project
+      TimeGenerated,
+      Caller,
+      Name,
+      UPNSuffix,
+      CallerIpAddress,
+      OperationNameValue,
+      ResourceGroup,
+      _ResourceId,
+      Resource,
+      CorrelationId,
+      SubscriptionId,
+      publicNetworkAccess,
+      defaultAction,
+      bypass
+entityMappings:
+  - entityType: AzureResource
+    fieldMappings:
+      - identifier: ResourceId
+        columnName: _ResourceId
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+      - identifier: Name
+        columnName: Name
+      - identifier: UPNSuffix
+        columnName: UPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+customDetails:
+  KeyVaultResourceId: _ResourceId
+  KeyVaultName: Resource
+  PublicNetworkAccess: publicNetworkAccess
+  FirewallDefaultAction: defaultAction
+  FirewallBypass: bypass
+  SubscriptionId: SubscriptionId
+alertDetailsOverride:
+  alertDisplayNameFormat: |
+    Key Vault public access or allow firewall enabled
+  alertDescriptionFormat: |
+    A Key Vault was updated to allow broader network access.
+
+    Actor: {{Caller}}
+    Source IP: {{CallerIpAddress}}
+    Key Vault: {{KeyVaultResourceId}}
+    Name: {{KeyVaultName}}
+    PublicNetworkAccess: {{PublicNetworkAccess}}
+    Network ACL DefaultAction: {{FirewallDefaultAction}}
+    Bypass: {{FirewallBypass}}
+    Subscription: {{SubscriptionId}}
+version: 1.0.0

@@ -1,0 +1,112 @@
+id: 6ac7be74-0f8b-4bba-b7c2-2ef7db9dfe2c
+name: Diagnostic settings deleted or all logs disabled
+kind: Scheduled
+description: |
+  'Detects deletion of diagnostic settings and updates that disable all diagnostic log categories. Reducing diagnostic telemetry can hide suspicious activity and hinder incident response.'
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+queryFrequency: 15m
+queryPeriod: 15m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+relevantTechniques:
+  - T1562
+query: |
+  let queryFrequency = 15m;
+  let base = AzureActivity
+  | where ingestion_time() > ago(queryFrequency)
+  | where ActivityStatusValue in~ ("Succeeded","Success","Accepted")
+  | where tolower(OperationNameValue) has "microsoft.insights/diagnosticsettings/" and (tolower(OperationNameValue) endswith "/delete" or tolower(OperationNameValue) endswith "/write")
+  | extend IsDelete = tolower(OperationNameValue) endswith "/delete";
+  let deletes = base
+  | where IsDelete
+  | extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])
+  | project
+      TimeGenerated,
+      Caller,
+      Name,
+      UPNSuffix,
+      CallerIpAddress,
+      OperationNameValue,
+      ResourceGroup,
+      _ResourceId,
+      Resource,
+      CorrelationId,
+      SubscriptionId,
+      IsDelete,
+      WorkspaceId = "",
+      EnabledLogs = int(null),
+      TotalLogs = int(null);
+  let writes = base
+  | where not(IsDelete)
+  | extend requestBody = tostring(parse_json(Properties).requestbody)
+  | extend request = parse_json(requestBody)
+  | extend dsProps = coalesce(request.properties, request.Properties)
+  | extend WorkspaceId = tostring(dsProps.workspaceId)
+  | extend logs = dsProps.logs
+  | mv-expand log = logs to typeof(dynamic)
+  | summarize
+      EnabledLogs = countif(tobool(log.enabled) == true),
+      TotalLogs = count()
+    by
+      TimeGenerated,
+      Caller,
+      CallerIpAddress,
+      OperationNameValue,
+      ResourceGroup,
+      _ResourceId,
+      Resource,
+      CorrelationId,
+      SubscriptionId,
+      WorkspaceId
+  | where TotalLogs > 0 and EnabledLogs == 0
+  | extend IsDelete = false
+  | extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0]);
+  union deletes, writes
+  | project-away log
+entityMappings:
+  - entityType: AzureResource
+    fieldMappings:
+      - identifier: ResourceId
+        columnName: _ResourceId
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+      - identifier: Name
+        columnName: Name
+      - identifier: UPNSuffix
+        columnName: UPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+customDetails:
+  DiagnosticSettingResourceId: _ResourceId
+  DiagnosticSettingName: Resource
+  SubscriptionId: SubscriptionId
+  WasDeleted: IsDelete
+  WorkspaceId: WorkspaceId
+  EnabledLogs: EnabledLogs
+  TotalLogs: TotalLogs
+alertDetailsOverride:
+  alertDisplayNameFormat: |
+    Diagnostic settings reduced (deleted or disabled)
+  alertDescriptionFormat: |
+    Diagnostic settings were deleted or updated to disable all log categories.
+
+    Actor: {{Caller}}
+    Source IP: {{CallerIpAddress}}
+    Diagnostic Setting: {{DiagnosticSettingResourceId}}
+    Name: {{DiagnosticSettingName}}
+    Deleted: {{WasDeleted}}
+    Workspace: {{WorkspaceId}}
+    EnabledLogs/TotalLogs: {{EnabledLogs}}/{{TotalLogs}}
+    Subscription: {{SubscriptionId}}
+version: 1.0.0

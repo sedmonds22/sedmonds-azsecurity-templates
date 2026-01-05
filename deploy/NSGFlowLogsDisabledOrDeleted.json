@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace that has Microsoft Sentinel enabled."
+      }
+    },
+    "enableRule": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether the analytic rule should be enabled after deployment."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "apiVersion": "2025-06-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', '8a1d8c12-8d0c-4e44-97d1-7b1320870d8d')]",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "NSG flow logs disabled or deleted",
+        "description": "Detects when NSG flow logs are disabled or deleted. Disabling flow logs reduces network visibility and can be used to evade detection of suspicious outbound traffic and lateral movement.",
+        "enabled": "[parameters('enableRule')]",
+        "severity": "High",
+        "query": "let queryFrequency = 15m;\nlet FlowLogsChanges = AzureActivity\n| where ingestion_time() > ago(queryFrequency)\n| where ActivityStatusValue =~ \"Success\"\n| where tolower(OperationNameValue) has \"microsoft.network/networkwatchers\" and (tolower(OperationNameValue) endswith \"/flowlogs/write\" or tolower(OperationNameValue) endswith \"/flowlogs/delete\")\n| extend requestBody = tostring(parse_json(Properties).requestbody)\n| extend request = parse_json(requestBody)\n| extend props = coalesce(request.properties, request.Properties)\n| extend Enabled = tobool(props.enabled)\n| extend IsDelete = tolower(OperationNameValue) endswith \"/flowlogs/delete\"\n| extend IsDisabled = (tolower(OperationNameValue) endswith \"/flowlogs/write\") and (Enabled == false)\n| where IsDelete or IsDisabled\n| extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0]);\nFlowLogsChanges\n| project\n    TimeGenerated,\n    Caller,\n    Name,\n    UPNSuffix,\n    CallerIpAddress,\n    OperationNameValue,\n    ResourceGroup,\n    _ResourceId,\n    Resource,\n    CorrelationId,\n    IsDelete,\n    IsDisabled,\n    Enabled",
+        "queryFrequency": "PT15M",
+        "queryPeriod": "PT15M",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "tactics": [
+          "DefenseEvasion"
+        ],
+        "techniques": [
+          "T1562"
+        ],
+        "entityMappings": [
+          {
+            "entityType": "AzureResource",
+            "fieldMappings": [
+              {
+                "columnName": "_ResourceId",
+                "identifier": "ResourceId"
+              }
+            ]
+          },
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "Caller",
+                "identifier": "FullName"
+              },
+              {
+                "columnName": "Name",
+                "identifier": "Name"
+              },
+              {
+                "columnName": "UPNSuffix",
+                "identifier": "UPNSuffix"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "CallerIpAddress",
+                "identifier": "Address"
+              }
+            ]
+          }
+        ],
+        "suppressionEnabled": false,
+        "suppressionDuration": "PT5H"
+      }
+    }
+  ]
+}
+

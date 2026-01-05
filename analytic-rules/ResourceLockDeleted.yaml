@@ -1,0 +1,73 @@
+id: 0d8f4f2c-7c3c-4e97-8b77-6ed3b9b96d5d
+name: Azure resource lock deleted
+kind: Scheduled
+description: |
+  'Detects deletion of Azure resource locks (ReadOnly / CanNotDelete). Removing locks can enable rapid changes or destructive actions that were previously prevented.'
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+queryFrequency: 15m
+queryPeriod: 15m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+  - Impact
+relevantTechniques:
+  - T1562
+  - T1485
+query: |
+  let queryFrequency = 15m;
+  AzureActivity
+  | where ingestion_time() > ago(queryFrequency)
+  | where ActivityStatusValue in~ ("Succeeded","Success","Accepted")
+  | where tolower(OperationNameValue) =~ "microsoft.authorization/locks/delete"
+  | extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])
+  | project
+      TimeGenerated,
+      Caller,
+      Name,
+      UPNSuffix,
+      CallerIpAddress,
+      OperationNameValue,
+      ResourceGroup,
+      _ResourceId,
+      Resource,
+      CorrelationId,
+      SubscriptionId
+entityMappings:
+  - entityType: AzureResource
+    fieldMappings:
+      - identifier: ResourceId
+        columnName: _ResourceId
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+      - identifier: Name
+        columnName: Name
+      - identifier: UPNSuffix
+        columnName: UPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+customDetails:
+  LockResourceId: _ResourceId
+  LockName: Resource
+  SubscriptionId: SubscriptionId
+alertDetailsOverride:
+  alertDisplayNameFormat: |
+    Azure resource lock deleted
+  alertDescriptionFormat: |
+    A resource lock was deleted.
+
+    Actor: {{Caller}}
+    Source IP: {{CallerIpAddress}}
+    Lock Resource: {{LockResourceId}}
+    Lock Name: {{LockName}}
+    Subscription: {{SubscriptionId}}
+version: 1.0.0

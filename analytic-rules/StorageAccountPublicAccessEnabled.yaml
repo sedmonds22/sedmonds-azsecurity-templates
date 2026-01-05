@@ -1,0 +1,90 @@
+id: 9f84f9de-2c3a-4c2f-83bf-9b0ddf0d0c54
+name: Storage account public access enabled
+kind: Scheduled
+description: |
+  'Detects Storage account configuration changes that enable public network access, set network rules defaultAction to Allow, or enable anonymous blob access (allowBlobPublicAccess). These settings can increase the risk of data exposure and exfiltration.'
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+queryFrequency: 15m
+queryPeriod: 15m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Exfiltration
+relevantTechniques:
+  - T1530
+  - T1567
+query: |
+  let queryFrequency = 15m;
+  AzureActivity
+  | where ingestion_time() > ago(queryFrequency)
+  | where ActivityStatusValue in~ ("Succeeded","Success","Accepted")
+  | where tolower(OperationNameValue) =~ "microsoft.storage/storageaccounts/write"
+  | extend requestBody = tostring(parse_json(Properties).requestbody)
+  | extend request = parse_json(requestBody)
+  | extend saProps = coalesce(request.properties, request.Properties)
+  | extend publicNetworkAccess = tostring(coalesce(saProps.publicNetworkAccess, saProps.PublicNetworkAccess))
+  | extend allowBlobPublicAccess = tobool(coalesce(saProps.allowBlobPublicAccess, saProps.AllowBlobPublicAccess))
+  | extend defaultAction = tostring(coalesce(saProps.networkAcls.defaultAction, saProps.networkAcls.DefaultAction, saProps.networkRuleSet.defaultAction, saProps.networkRuleSet.DefaultAction))
+  | extend IsPublicNetworkEnabled = tolower(publicNetworkAccess) == "enabled"
+  | extend IsFirewallAllow = tolower(defaultAction) == "allow"
+  | where allowBlobPublicAccess == true or IsPublicNetworkEnabled or IsFirewallAllow
+  | extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])
+  | project
+      TimeGenerated,
+      Caller,
+      Name,
+      UPNSuffix,
+      CallerIpAddress,
+      OperationNameValue,
+      ResourceGroup,
+      _ResourceId,
+      Resource,
+      CorrelationId,
+      SubscriptionId,
+      publicNetworkAccess,
+      defaultAction,
+      allowBlobPublicAccess
+entityMappings:
+  - entityType: AzureResource
+    fieldMappings:
+      - identifier: ResourceId
+        columnName: _ResourceId
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+      - identifier: Name
+        columnName: Name
+      - identifier: UPNSuffix
+        columnName: UPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+customDetails:
+  StorageAccountResourceId: _ResourceId
+  StorageAccountName: Resource
+  PublicNetworkAccess: publicNetworkAccess
+  NetworkDefaultAction: defaultAction
+  AllowBlobPublicAccess: allowBlobPublicAccess
+  SubscriptionId: SubscriptionId
+alertDetailsOverride:
+  alertDisplayNameFormat: |
+    Storage account public access enabled
+  alertDescriptionFormat: |
+    A Storage account was updated to allow broader public access.
+
+    Actor: {{Caller}}
+    Source IP: {{CallerIpAddress}}
+    Storage Account: {{StorageAccountResourceId}}
+    Name: {{StorageAccountName}}
+    PublicNetworkAccess: {{PublicNetworkAccess}}
+    Network DefaultAction: {{NetworkDefaultAction}}
+    AllowBlobPublicAccess: {{AllowBlobPublicAccess}}
+    Subscription: {{SubscriptionId}}
+version: 1.0.0

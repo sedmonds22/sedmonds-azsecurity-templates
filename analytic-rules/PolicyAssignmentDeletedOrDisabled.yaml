@@ -1,0 +1,84 @@
+id: 4c6a94e8-8f95-4ae3-9a44-0c96e7a1d3bf
+name: Azure Policy assignment deleted or set to DoNotEnforce
+kind: Scheduled
+description: |
+  'Detects deletion of Azure Policy assignments and updates that set enforcementMode to DoNotEnforce. Disabling or removing policy enforcement can open governance gaps and enable risky configurations.'
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+queryFrequency: 15m
+queryPeriod: 15m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+relevantTechniques:
+  - T1562
+query: |
+  let queryFrequency = 15m;
+  AzureActivity
+  | where ingestion_time() > ago(queryFrequency)
+  | where ActivityStatusValue in~ ("Succeeded","Success","Accepted")
+  | where tolower(OperationNameValue) has "microsoft.authorization/policyassignments/" and (tolower(OperationNameValue) endswith "/delete" or tolower(OperationNameValue) endswith "/write")
+  | extend IsDelete = tolower(OperationNameValue) endswith "/delete"
+  | extend requestBody = tostring(parse_json(Properties).requestbody)
+  | extend request = parse_json(requestBody)
+  | extend paProps = coalesce(request.properties, request.Properties)
+  | extend enforcementMode = tostring(coalesce(paProps.enforcementMode, paProps.EnforcementMode))
+  | extend IsDoNotEnforce = tolower(enforcementMode) == "donotenforce"
+  | where IsDelete or IsDoNotEnforce
+  | extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])
+  | project
+      TimeGenerated,
+      Caller,
+      Name,
+      UPNSuffix,
+      CallerIpAddress,
+      OperationNameValue,
+      ResourceGroup,
+      _ResourceId,
+      Resource,
+      CorrelationId,
+      SubscriptionId,
+      IsDelete,
+      enforcementMode
+entityMappings:
+  - entityType: AzureResource
+    fieldMappings:
+      - identifier: ResourceId
+        columnName: _ResourceId
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+      - identifier: Name
+        columnName: Name
+      - identifier: UPNSuffix
+        columnName: UPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+customDetails:
+  PolicyAssignmentResourceId: _ResourceId
+  PolicyAssignmentName: Resource
+  SubscriptionId: SubscriptionId
+  WasDeleted: IsDelete
+  EnforcementMode: enforcementMode
+alertDetailsOverride:
+  alertDisplayNameFormat: |
+    Azure Policy assignment deleted or disabled
+  alertDescriptionFormat: |
+    An Azure Policy assignment was deleted or changed to DoNotEnforce.
+
+    Actor: {{Caller}}
+    Source IP: {{CallerIpAddress}}
+    Policy Assignment: {{PolicyAssignmentResourceId}}
+    Name: {{PolicyAssignmentName}}
+    Deleted: {{WasDeleted}}
+    EnforcementMode: {{EnforcementMode}}
+    Subscription: {{SubscriptionId}}
+version: 1.0.0
