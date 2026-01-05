@@ -1,0 +1,59 @@
+id: f1b39ec9-4209-4887-ad58-8e2d461426d8
+name: Successful legacy authentication sign-in
+kind: Scheduled
+description: |
+  'Detects successful Microsoft Entra ID sign-ins that use legacy client authentication protocols (for example IMAP/POP/SMTP/MAPI). These are frequently targeted because they may bypass modern controls like MFA depending on tenant configuration.'
+severity: Medium
+status: Available
+requiredDataConnectors:
+  - connectorId: AzureActiveDirectory
+    dataTypes:
+      - SigninLogs
+queryFrequency: 15m
+queryPeriod: 15m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - InitialAccess
+relevantTechniques:
+  - T1078
+query: |
+  let queryFrequency = 15m;
+  let legacyClients = dynamic(["IMAP4","POP3","SMTP","MAPI","Exchange ActiveSync","Other clients"]);
+  SigninLogs
+  | where TimeGenerated > ago(queryFrequency)
+  | where ResultType == 0
+  | where ClientAppUsed in~ (legacyClients)
+  | extend Name = tostring(split(UserPrincipalName,'@',0)[0]), UPNSuffix = tostring(split(UserPrincipalName,'@',1)[0])
+  | project TimeGenerated, UserPrincipalName, Name, UPNSuffix, IPAddress, ClientAppUsed, AppDisplayName, ResourceDisplayName, UserAgent, Location, ConditionalAccessStatus, AuthenticationRequirement
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserPrincipalName
+      - identifier: Name
+        columnName: Name
+      - identifier: UPNSuffix
+        columnName: UPNSuffix
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: IPAddress
+customDetails:
+  ClientAppUsed: ClientAppUsed
+  AppDisplayName: AppDisplayName
+  ResourceDisplayName: ResourceDisplayName
+  ConditionalAccessStatus: ConditionalAccessStatus
+alertDetailsOverride:
+  alertDisplayNameFormat: |
+    Successful legacy authentication sign-in
+  alertDescriptionFormat: |
+    A successful sign-in occurred using a legacy authentication client.
+
+    User: {{UserPrincipalName}}
+    IP: {{IPAddress}}
+    Client: {{ClientAppUsed}}
+    App: {{AppDisplayName}}
+    Resource: {{ResourceDisplayName}}
+    CA status: {{ConditionalAccessStatus}}
+version: 1.0.0

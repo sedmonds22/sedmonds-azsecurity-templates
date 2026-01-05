@@ -1,0 +1,63 @@
+id: 6e360b52-0164-45d8-a147-7c3ff4226b53
+name: O365 inbox rule forwards or redirects to external address
+kind: Scheduled
+description: |
+  'Detects creation or modification of Exchange Online inbox rules that forward or redirect emails to external recipients. Attackers commonly use inbox rules to exfiltrate mail silently.'
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: Office365
+    dataTypes:
+      - OfficeActivity
+queryFrequency: 15m
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Collection
+  - Exfiltration
+relevantTechniques:
+  - T1114
+query: |
+  let queryFrequency = 15m;
+  // Optional: add your tenant domains to reduce noise (e.g., dynamic(["contoso.com","contoso.onmicrosoft.com"]))
+  let allowedDomains = dynamic([]);
+  OfficeActivity
+  | where TimeGenerated > ago(queryFrequency)
+  | where Operation in~ ("New-InboxRule", "Set-InboxRule")
+  | extend Params = todynamic(Parameters)
+  | mv-expand Params
+  | extend ParamName = tostring(Params.Name), ParamValue = tostring(Params.Value)
+  | summarize ParamBag = make_bag(pack(ParamName, ParamValue)) by TimeGenerated, Operation, UserId, ClientIP, UserAgent, OrganizationId, RecordType, OfficeWorkload
+  | extend ForwardTo = tostring(ParamBag.ForwardTo), RedirectTo = tostring(ParamBag.RedirectTo), ForwardingSmtpAddress = tostring(ParamBag.ForwardingSmtpAddress)
+  | extend TargetsRaw = strcat(ForwardTo, ';', RedirectTo, ';', ForwardingSmtpAddress)
+  | extend TargetEmails = extract_all(@"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", TargetsRaw)
+  | where array_length(TargetEmails) > 0
+  | mv-expand TargetEmail = TargetEmails
+  | extend TargetDomain = tostring(split(tostring(TargetEmail), '@', 1)[0])
+  | where array_length(allowedDomains) == 0 or TargetDomain !in (allowedDomains)
+  | project TimeGenerated, Operation, UserId, ClientIP, UserAgent, TargetEmail, TargetDomain, ForwardTo, RedirectTo, ForwardingSmtpAddress
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: UserId
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: ClientIP
+customDetails:
+  Operation: Operation
+  TargetEmail: TargetEmail
+  TargetDomain: TargetDomain
+alertDetailsOverride:
+  alertDisplayNameFormat: |
+    Inbox rule forwards/redirects mail to external recipient
+  alertDescriptionFormat: |
+    An inbox rule was created or modified and appears to forward or redirect email to an external recipient.
+
+    User: {{UserId}}
+    Client IP: {{ClientIP}}
+    Operation: {{Operation}}
+    Target: {{TargetEmail}}
+version: 1.0.0

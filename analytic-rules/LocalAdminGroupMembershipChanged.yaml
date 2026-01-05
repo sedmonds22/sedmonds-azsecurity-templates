@@ -1,0 +1,56 @@
+id: abf757e2-7e02-4704-a365-490c5e569e8b
+name: Local administrators group membership changed (Windows)
+kind: Scheduled
+description: |
+  'Detects additions or removals of accounts in local privileged groups on Windows hosts (for example Local Administrators or Remote Desktop Users). This can indicate privilege escalation or persistence.'
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: SecurityEvents
+    dataTypes:
+      - SecurityEvent
+queryFrequency: 15m
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - PrivilegeEscalation
+  - Persistence
+relevantTechniques:
+  - T1098
+query: |
+  let queryFrequency = 15m;
+  let privilegedGroups = dynamic(["Administrators","Remote Desktop Users"]);
+  SecurityEvent
+  | where TimeGenerated > ago(queryFrequency)
+  | where EventID in (4732, 4733)
+  | where TargetUserName in~ (privilegedGroups)
+  | extend Action = iff(EventID == 4732, "Added", "Removed")
+  | extend SubjectAccount = strcat(SubjectDomainName, "\\", SubjectUserName)
+  | extend Member = coalesce(tostring(parse_json(EventData).MemberName), MemberName)
+  | project TimeGenerated, Computer, Action, TargetUserName, SubjectAccount, Member, SubjectUserSid, TargetSid
+entityMappings:
+  - entityType: Host
+    fieldMappings:
+      - identifier: HostName
+        columnName: Computer
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: SubjectAccount
+customDetails:
+  Action: Action
+  Group: TargetUserName
+  Member: Member
+alertDetailsOverride:
+  alertDisplayNameFormat: |
+    Local privileged group membership {{Action}}
+  alertDescriptionFormat: |
+    A local privileged group membership change was detected.
+
+    Host: {{Computer}}
+    Group: {{TargetUserName}}
+    Action: {{Action}}
+    Actor: {{SubjectAccount}}
+    Member: {{Member}}
+version: 1.0.0

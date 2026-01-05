@@ -1,0 +1,67 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace that has Microsoft Sentinel enabled."
+      }
+    },
+    "enableRule": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether the analytic rule should be enabled after deployment."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "apiVersion": "2025-06-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', 'abf757e2-7e02-4704-a365-490c5e569e8b')]",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Local administrators group membership changed (Windows)",
+        "description": "Detects additions or removals of accounts in local privileged groups on Windows hosts (for example Local Administrators or Remote Desktop Users). This can indicate privilege escalation or persistence.",
+        "enabled": "[parameters('enableRule')]",
+        "severity": "High",
+        "query": "let queryFrequency = 15m;\r\nlet privilegedGroups = dynamic([\"Administrators\",\"Remote Desktop Users\"]);\r\nSecurityEvent\r\n| where TimeGenerated > ago(queryFrequency)\r\n| where EventID in (4732, 4733)\r\n| where TargetUserName in~ (privilegedGroups)\r\n| extend Action = iff(EventID == 4732, \"Added\", \"Removed\")\r\n| extend SubjectAccount = strcat(SubjectDomainName, \"\\\\\", SubjectUserName)\r\n| extend Member = coalesce(tostring(parse_json(EventData).MemberName), MemberName)\r\n| project TimeGenerated, Computer, Action, TargetUserName, SubjectAccount, Member, SubjectUserSid, TargetSid",
+        "queryFrequency": "PT15M",
+        "queryPeriod": "PT1H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "tactics": [
+          "PrivilegeEscalation",
+          "Persistence"
+        ],
+        "techniques": [
+          "T1098"
+        ],
+        "entityMappings": [
+          {
+            "entityType": "Host",
+            "fieldMappings": [
+              {
+                "columnName": "Computer",
+                "identifier": "HostName"
+              }
+            ]
+          },
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "SubjectAccount",
+                "identifier": "FullName"
+              }
+            ]
+          }
+        ],
+        "suppressionEnabled": false,
+        "suppressionDuration": "PT5H"
+      }
+    }
+  ]
+}

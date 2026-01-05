@@ -1,0 +1,74 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace that has Microsoft Sentinel enabled."
+      }
+    },
+    "enableRule": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether the analytic rule should be enabled after deployment."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "apiVersion": "2025-06-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', 'f1b39ec9-4209-4887-ad58-8e2d461426d8')]",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Successful legacy authentication sign-in",
+        "description": "Detects successful Microsoft Entra ID sign-ins that use legacy client authentication protocols (for example IMAP/POP/SMTP/MAPI). These are frequently targeted because they may bypass modern controls like MFA depending on tenant configuration.",
+        "enabled": "[parameters('enableRule')]",
+        "severity": "Medium",
+        "query": "let queryFrequency = 15m;\r\nlet legacyClients = dynamic([\"IMAP4\",\"POP3\",\"SMTP\",\"MAPI\",\"Exchange ActiveSync\",\"Other clients\"]);\r\nSigninLogs\r\n| where TimeGenerated > ago(queryFrequency)\r\n| where ResultType == 0\r\n| where ClientAppUsed in~ (legacyClients)\r\n| extend Name = tostring(split(UserPrincipalName,'@',0)[0]), UPNSuffix = tostring(split(UserPrincipalName,'@',1)[0])\r\n| project TimeGenerated, UserPrincipalName, Name, UPNSuffix, IPAddress, ClientAppUsed, AppDisplayName, ResourceDisplayName, UserAgent, Location, ConditionalAccessStatus, AuthenticationRequirement",
+        "queryFrequency": "PT15M",
+        "queryPeriod": "PT15M",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "tactics": [
+          "InitialAccess"
+        ],
+        "techniques": [
+          "T1078"
+        ],
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "UserPrincipalName",
+                "identifier": "FullName"
+              },
+              {
+                "columnName": "Name",
+                "identifier": "Name"
+              },
+              {
+                "columnName": "UPNSuffix",
+                "identifier": "UPNSuffix"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "IPAddress",
+                "identifier": "Address"
+              }
+            ]
+          }
+        ],
+        "suppressionEnabled": false,
+        "suppressionDuration": "PT5H"
+      }
+    }
+  ]
+}
