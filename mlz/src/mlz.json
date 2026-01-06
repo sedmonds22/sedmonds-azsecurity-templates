@@ -5368,7 +5368,7 @@
                   "variables": {
                     "sentinelAutomationContributorRoleDefinitionGuid": "f4c81013-99ee-4d62-a7ee-b3f1f648599a",
                     "workspaceContributorRoleDefinitionGuid": "b24988ac-6180-42a0-ab88-20f7382dd24c",
-                    "shouldRunAutomationScript": "[and(parameters('deploySentinelAutomationScript'), empty(parameters('sentinelAutomationPrincipalId')))]",
+                    "shouldRunAutomationScript": "[parameters('deploySentinelAutomationScript')]",
                     "shouldConfigureEntitySetting": "[and(and(parameters('enableEntityBehavior'), parameters('deployEntityBehaviorSetting')), parameters('useEntityBehaviorScript'))]",
                     "shouldDeployEntitySettingDirect": "[and(and(parameters('enableEntityBehavior'), parameters('deployEntityBehaviorSetting')), not(parameters('useEntityBehaviorScript')))]",
                     "entityBehaviorSettingResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')]",

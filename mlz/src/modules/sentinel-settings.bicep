@@ -39,7 +39,7 @@ param deploySentinelAutomationScript bool = true
 
 var sentinelAutomationContributorRoleDefinitionGuid = 'f4c81013-99ee-4d62-a7ee-b3f1f648599a'
 var workspaceContributorRoleDefinitionGuid = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
-var shouldRunAutomationScript = deploySentinelAutomationScript && empty(sentinelAutomationPrincipalId)
+var shouldRunAutomationScript = deploySentinelAutomationScript
 var shouldConfigureEntitySetting = enableEntityBehavior && deployEntityBehaviorSetting && useEntityBehaviorScript
 var shouldDeployEntitySettingDirect = enableEntityBehavior && deployEntityBehaviorSetting && !useEntityBehaviorScript
 var shouldConfigureUebaSetting = enableUeba && deployUebaSetting
