@@ -5521,7 +5521,9 @@
                       "properties": {
                         "dataSources": "[parameters('uebaDataSources')]"
                       },
-                      "dependsOn": "[concat(createArray(extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')), if(or(variables('shouldConfigureEntitySetting'), variables('shouldDeployEntitySettingDirect')), createArray(variables('entityBehaviorSettingResourceId')), createArray()), if(variables('shouldConfigureEntitySetting'), createArray(resourceId('Microsoft.Resources/deploymentScripts', format('configure-entity-behavior-{0}', uniqueString(resourceGroup().id)))), createArray()))]"
+                      "dependsOn": [
+                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')]"
+                      ]
                     },
                     {
                       "condition": "[parameters('enableAnomalies')]",
