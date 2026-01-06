@@ -210,21 +210,21 @@
     },
     "enableEntityBehavior": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
-        "description": "Toggle to configure the Microsoft Sentinel Entity Behavior Analytics setting for Microsoft Entra ID signals."
+        "description": "Toggle to configure the Microsoft Sentinel Entity Behavior Analytics setting for Microsoft Entra ID signals. This may require Microsoft Entra directory roles (e.g., Security Administrator / Global Administrator)."
       }
     },
     "deployEntityBehaviorSetting": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
-        "description": "Skip provisioning the Entity Behavior Analytics setting when it already exists to avoid concurrency conflicts."
+        "description": "When true, provisions the Entity Behavior Analytics setting (directly or via deployment script based on useEntityBehaviorScript)."
       }
     },
     "useEntityBehaviorScript": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
         "description": "Use the deployment script to upsert Entity Behavior settings. Disable for brand new workspaces to provision the resource directly."
       }
@@ -263,9 +263,9 @@
     },
     "deploySentinelAutomationScript": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
-        "description": "Toggle to run the built-in script that discovers and assigns the Sentinel automation service principal. Disable when you will configure automation access separately."
+        "description": "Toggle to run the built-in script that discovers and assigns the Sentinel automation service principal. This can require Microsoft Entra directory read permissions; leave disabled if your deployment identity is not permitted to query service principals."
       }
     },
     "sentinelAutomationPrincipalId": {
@@ -5299,21 +5299,21 @@
                     },
                     "enableEntityBehavior": {
                       "type": "bool",
-                      "defaultValue": true,
+                      "defaultValue": false,
                       "metadata": {
                         "description": "Toggle to configure the Entity Behavior Analytics setting."
                       }
                     },
                     "deployEntityBehaviorSetting": {
                       "type": "bool",
-                      "defaultValue": true,
+                      "defaultValue": false,
                       "metadata": {
                         "description": "Skip provisioning the Entity Behavior Analytics setting when it already exists to avoid concurrency conflicts."
                       }
                     },
                     "useEntityBehaviorScript": {
                       "type": "bool",
-                      "defaultValue": true,
+                      "defaultValue": false,
                       "metadata": {
                         "description": "Use the deployment script (recommended when the setting already exists) to upsert Entity Behavior. Disable for brand new workspaces to provision the resource directly."
                       }
@@ -5359,7 +5359,7 @@
                     },
                     "deploySentinelAutomationScript": {
                       "type": "bool",
-                      "defaultValue": true,
+                      "defaultValue": false,
                       "metadata": {
                         "description": "Toggle to run the deployment script that discovers and assigns the Sentinel automation service principal. Disable when you plan to handle the automation role manually later."
                       }
@@ -5521,11 +5521,7 @@
                       "properties": {
                         "dataSources": "[parameters('uebaDataSources')]"
                       },
-                      "dependsOn": [
-                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')]",
-                        "[resourceId('Microsoft.Resources/deploymentScripts', format('configure-entity-behavior-{0}', uniqueString(resourceGroup().id)))]",
-                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')]"
-                      ]
+                      "dependsOn": "[concat(createArray(extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')), if(or(variables('shouldConfigureEntitySetting'), variables('shouldDeployEntitySettingDirect')), createArray(variables('entityBehaviorSettingResourceId')), createArray()), if(variables('shouldConfigureEntitySetting'), createArray(resourceId('Microsoft.Resources/deploymentScripts', format('configure-entity-behavior-{0}', uniqueString(resourceGroup().id)))), createArray()))]"
                     },
                     {
                       "condition": "[parameters('enableAnomalies')]",
