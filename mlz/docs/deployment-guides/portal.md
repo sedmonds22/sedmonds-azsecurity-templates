@@ -111,6 +111,8 @@ Azure Policy can be applied to your MLZ deployment. The policies are assigned to
 
 - **Enable Microsoft Sentinel:** turns on Microsoft Sentinel in the Operations workspace, enables UEBA, and automatically installs the Azure Activity and Microsoft Entra ID solution packages (data connectors, hunting queries, analytic rules, workbooks, and Logic App playbooks). Playbooks deploy in a disabled state until you authorize their connections post-deployment.
 
+   Some optional Sentinel/Entra configuration steps are **opt-in** because they can require elevated Microsoft Entra directory permissions (for example, Security Administrator / Global Administrator) or the ability to query service principals. If you need them, enable the relevant parameters in the deployment parameters before submitting.
+
 ### STEP 4: Remote Access
 
 #### Azure Bastion
