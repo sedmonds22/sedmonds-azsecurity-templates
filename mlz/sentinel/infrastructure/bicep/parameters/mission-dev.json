@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceGroupName": {
+      "value": "rg-mlz-sentinel-dev"
+    },
+    "workspaceName": {
+      "value": "law-mlz-sentinel-dev"
+    },
+    "location": {
+      "value": "eastus2"
+    },
+    "retentionInDays": {
+      "value": 120
+    },
+    "enableEntityBehavior": {
+      "value": true
+    },
+    "deployEntityBehaviorSetting": {
+      "value": true
+    },
+    "enableAzureActivityDiagnostics": {
+      "value": true
+    },
+    "enableEntraDiagnostics": {
+      "value": true
+    },
+    "tags": {
+      "value": {
+        "environment": "development",
+        "workload": "mlz-sentinel",
+        "mission": "landing-zone"
+      }
+    },
+    "azureActivityDiagnosticName": {
+      "value": "diag-azureactivity-mlz-dev"
+    },
+    "entraDiagnosticName": {
+      "value": "diag-entra-mlz-dev"
+    }
+  }
+}

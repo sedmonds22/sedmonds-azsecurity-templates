@@ -1,0 +1,1609 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2021-09-09/uiFormDefinition.schema.json",
+  "view": {
+    "kind": "Form",
+    "properties": {
+      "title": "Mission Landing Zone Add-On: Zero Trust Image Build Solution",
+      "steps": [
+        {
+          "name": "basics",
+          "label": "Basics",
+          "elements": [
+            {
+              "name": "scope",
+              "type": "Microsoft.Common.ResourceScope",
+              "instanceDetailsLabel": "",
+              "location": {
+                "resourceTypes": []
+              }
+            },
+            {
+              "name": "hub",
+              "label": "Hub Resources",
+              "type": "Microsoft.Common.Section",
+              "elements": [
+                {
+                  "name": "api",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "request": {
+                    "method": "GET",
+                    "path": "subscriptions?api-version=2020-01-01"
+                  }
+                },
+                {
+                  "name": "subscription",
+                  "label": "Subscription",
+                  "type": "Microsoft.Common.DropDown",
+                  "defaultValue": "[steps('basics').scope.subscription.displayName]",
+                  "toolTip": "Select the subscription for your Mission Landing Zone Hub network, firewall, and remote access resources.",
+                  "filter": true,
+                  "constraints": {
+                    "allowedValues": "[map(steps('basics').hub.api.value, (item) => parse(concat('{\"label\":\"', item.displayName, '\",\"value\":\"', item.id, '\",\"description\":\"', 'ID: ', item.subscriptionId, '\"}')))]",
+                    "required": true
+                  }
+                },
+                {
+                  "name": "virtualNetworksApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "request": {
+                    "method": "GET",
+                    "path": "[concat(steps('basics').hub.subscription, '/providers/Microsoft.Network/virtualNetworks?api-version=2023-05-01')]"
+                  }
+                },
+                {
+                  "name": "virtualNetwork",
+                  "type": "Microsoft.Common.DropDown",
+                  "visible": true,
+                  "label": "Virtual network",
+                  "defaultValue": "[filter(map(steps('basics').hub.virtualNetworksApi.value, (item) => item.name), (item) => contains(item, 'hub'))]",
+                  "filter": true,
+                  "toolTip": "Select the existing Hub virtual network.",
+                  "constraints": {
+                    "required": true,
+                    "allowedValues": "[map(steps('basics').hub.virtualNetworksApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.id, '\"}')))]"
+                  }
+                },
+                {
+                  "name": "azureFirewallsApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "request": {
+                    "method": "GET",
+                    "path": "[concat(steps('basics').hub.subscription, '/resourceGroups/', first(skip(split(steps('basics').hub.virtualNetwork, '/'), 4)), '/providers/Microsoft.Network/azureFirewalls?api-version=2023-09-01')]"
+                  }
+                },
+                {
+                  "name": "azureFirewall",
+                  "type": "Microsoft.Common.DropDown",
+                  "visible": true,
+                  "label": "Azure firewall",
+                  "defaultValue": "[first(map(steps('basics').hub.azureFirewallsApi.value, (item) => item.name))]",
+                  "filter": true,
+                  "toolTip": "Select the existing Hub Azure firewall.",
+                  "constraints": {
+                    "required": true,
+                    "allowedValues": "[map(steps('basics').hub.azureFirewallsApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.id, '\"}')))]"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "naming",
+              "type": "Microsoft.Common.Section",
+              "label": "Naming Components",
+              "elements": [
+                {
+                  "name": "description",
+                  "type": "Microsoft.Common.TextBlock",
+                  "options": {
+                    "text": "The values selected below will be used as components in your naming convention to name your Azure resource groups and resources. For more information on the naming convention used in this solution, refer to the documentation.",
+                    "link": {}
+                  }
+                },
+                {
+                  "name": "identifier",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Identifier",
+                  "toolTip": "Input a 3 character identifier for the resource group and resource names created with this solution. The identifier should represent a unique value within your organization, such as a business unit or project.",
+                  "placeholder": "Example: ms",
+                  "constraints": {
+                    "required": true,
+                    "regex": "^[a-z0-9A-Z]{1,3}$",
+                    "validationMessage": "The value must be 1 - 3 characters in length and must be alphanumeric."
+                  }
+                },
+                {
+                  "name": "environment",
+                  "type": "Microsoft.Common.DropDown",
+                  "visible": true,
+                  "label": "Environment Abbreviation",
+                  "defaultValue": "Development (dev)",
+                  "toolTip": "Select the target environment for the solution. The single letter environment abbreviation will be used as part of the naming convention for the resoure groups and resources.",
+                  "constraints": {
+                    "required": true,
+                    "allowedValues": [
+                      {
+                        "label": "Development (dev)",
+                        "value": "dev"
+                      },
+                      {
+                        "label": "Production (prod)",
+                        "value": "prod"
+                      },
+                      {
+                        "label": "Test (test)",
+                        "value": "test"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "artifacts",
+              "type": "Microsoft.Common.Section",
+              "label": "Deployment Artifacts",
+              "elements": [
+                {
+                  "name": "storageSelector",
+                  "type": "Microsoft.Solutions.ResourceSelector",
+                  "label": "Select storage account",
+                  "resourceType": "Microsoft.Storage/storageAccounts",
+                  "options": {
+                    "filter": {
+                      "subscription": "[steps('basics').scope.subscription.id]",
+                      "location": "[steps('basics').scope.location.name]"
+                    }
+                  }
+                },
+                {
+                  "name": "containerApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "request": {
+                    "method": "GET",
+                    "path": "[concat(steps('basics').artifacts.storageSelector.id, '/blobServices/default/containers?api-version=2023-01-01')]"
+                  }
+                },
+                {
+                  "name": "container",
+                  "type": "Microsoft.Common.DropDown",
+                  "visible": true,
+                  "label": "Container",
+                  "defaultValue": "",
+                  "toolTip": "Select an existing container.",
+                  "constraints": {
+                    "required": true,
+                    "allowedValues": "[map(steps('basics').artifacts.containerApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.id, '\"}')))]"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "image",
+          "label": "Image",
+          "elements": [
+            {
+              "name": "source",
+              "label": "Source",
+              "type": "Microsoft.Common.Section",
+              "visible": true,
+              "elements": [
+                {
+                  "name": "type",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Type of image",
+                  "defaultValue": "Azure Marketplace",
+                  "toolTip": "Select the desired Azure service for the source image.",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "Azure Compute Gallery",
+                        "value": "AzureComputeGallery"
+                      },
+                      {
+                        "label": "Azure Marketplace",
+                        "value": "AzureMarketplace"
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": true
+                },
+                {
+                  "name": "publisher",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Publisher",
+                  "defaultValue": "Microsoft Windows Desktop",
+                  "toolTip": "Select the desired marketplace image publisher.",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "Microsoft Windows Desktop",
+                        "value": "MicrosoftWindowsDesktop"
+                      },
+                      {
+                        "label": "Microsoft Windows Server",
+                        "value": "MicrosoftWindowsServer"
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[equals(steps('image').source.type, 'AzureMarketplace')]"
+                },
+                {
+                  "name": "offersApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "request": {
+                    "method": "GET",
+                    "path": "[concat(steps('basics').scope.subscription.id, '/providers/Microsoft.Compute/locations/', steps('basics').scope.location.name, '/publishers/', steps('image').source.publisher, '/artifacttypes/vmimage/offers?api-version=2023-07-01')]"
+                  }
+                },
+                {
+                  "name": "offer",
+                  "type": "Microsoft.Common.DropDown",
+                  "label": "Offer",
+                  "defaultValue": "",
+                  "toolTip": "Select the desired marketplace image offer.",
+                  "constraints": {
+                    "allowedValues": "[map(steps('image').source.offersApi, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
+                    "required": true
+                  },
+                  "visible": "[equals(steps('image').source.type, 'AzureMarketplace')]"
+                },
+                {
+                  "name": "skusApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "request": {
+                    "method": "GET",
+                    "path": "[concat(steps('basics').scope.subscription.id, '/providers/Microsoft.Compute/locations/', steps('basics').scope.location.name, '/publishers/', steps('image').source.publisher, '/artifacttypes/vmimage/offers/', steps('image').source.offer, '/skus?api-version=2023-07-01')]"
+                  }
+                },
+                {
+                  "name": "sku",
+                  "type": "Microsoft.Common.DropDown",
+                  "label": "SKU",
+                  "defaultValue": "win11-22h2-avd",
+                  "toolTip": "Select the desired marketplace image SKU.",
+                  "constraints": {
+                    "allowedValues": "[map(steps('image').source.skusApi, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
+                    "required": true
+                  },
+                  "visible": "[equals(steps('image').source.type, 'AzureMarketplace')]"
+                },
+                {
+                  "name": "gallery",
+                  "type": "Microsoft.Solutions.ResourceSelector",
+                  "label": "Compute gallery",
+                  "resourceType": "Microsoft.Compute/galleries",
+                  "options": {
+                    "filter": {
+                      "subscription": "onBasics",
+                      "location": "onBasics"
+                    }
+                  },
+                  "visible": "[equals(steps('image').source.type, 'AzureComputeGallery')]"
+                },
+                {
+                  "name": "imageDefinitionApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "request": {
+                    "method": "GET",
+                    "path": "[concat(steps('image').source.gallery.gallery.id, '/images?api-version=2022-03-03')]"
+                  }
+                },
+                {
+                  "name": "imageDefinition",
+                  "type": "Microsoft.Common.DropDown",
+                  "label": "Image Definition",
+                  "defaultValue": "",
+                  "toolTip": "Select the desired image definition.",
+                  "constraints": {
+                    "allowedValues": "[map(steps('image').source.gallery.imageDefinitionApi.value, (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.id, '\"}')))]",
+                    "required": true
+                  },
+                  "visible": "[equals(steps('image').source.type, 'AzureComputeGallery')]"
+                }
+              ]
+            },
+            {
+              "name": "destination",
+              "label": "Destination",
+              "type": "Microsoft.Common.Section",
+              "elements": [
+                {
+                  "name": "imageDefinitionNamePrefix",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Image definition name prefix",
+                  "defaultValue": "",
+                  "placeholder": "Example: developer"
+                },
+                {
+                  "name": "replicaCount",
+                  "type": "Microsoft.Common.Slider",
+                  "min": 1,
+                  "max": 50,
+                  "label": "Image version - replica count",
+                  "subLabel": "count",
+                  "defaultValue": 1,
+                  "showStepMarkers": false,
+                  "toolTip": "Regional replica count which specifies the number of replicas you want to create per region",
+                  "constraints": {
+                    "required": false
+                  },
+                  "visible": true
+                },
+                {
+                  "name": "excludeFromLatest",
+                  "type": "Microsoft.Common.CheckBox",
+                  "label": "Image version - exclude from latest",
+                  "defaultValue": false,
+                  "toolTip": "Determines whether the image version will be the latest available version."
+                },
+                {
+                  "name": "majorVersion",
+                  "type": "Microsoft.Common.Slider",
+                  "min": 1,
+                  "max": 12,
+                  "label": "Image version - major version number",
+                  "subLabel": "Maj. Version",
+                  "defaultValue": 1,
+                  "showStepMarkers": false,
+                  "toolTip": "Input the major version number",
+                  "constraints": {
+                    "required": false
+                  },
+                  "visible": true,
+                  "required": true
+                },
+                {
+                  "name": "minorVersion",
+                  "type": "Microsoft.Common.Slider",
+                  "min": 0,
+                  "max": 12,
+                  "label": "Image version - minor version number",
+                  "subLabel": "Min. Version",
+                  "defaultValue": 0,
+                  "showStepMarkers": false,
+                  "toolTip": "Input the minor version number",
+                  "constraints": {
+                    "required": false
+                  },
+                  "visible": true,
+                  "required": true
+                },
+                {
+                  "name": "patchVersion",
+                  "type": "Microsoft.Common.Slider",
+                  "min": 0,
+                  "max": 12,
+                  "label": "Image version - patch version number",
+                  "subLabel": "Patch Version",
+                  "defaultValue": 0,
+                  "showStepMarkers": false,
+                  "toolTip": "Input the patch version number",
+                  "constraints": {
+                    "required": false
+                  },
+                  "visible": true,
+                  "required": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "customizations",
+          "label": "Customizations",
+          "elements": [
+            {
+              "name": "customSoftware",
+              "type": "Microsoft.Common.Section",
+              "label": "Custom Software",
+              "elements": [
+                {
+                  "name": "installCustomSoftware",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Custom Software",
+                  "defaultValue": [
+                    "No"
+                  ],
+                  "toolTip": "Select True to add custom software to the image",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "Yes",
+                        "value": true
+                      },
+                      {
+                        "label": "No",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": true
+                },
+                {
+                  "name": "customizationText",
+                  "type": "Microsoft.Common.TextBlock",
+                  "visible": "[steps('customizations').customSoftware.installCustomSoftware]",
+                  "options": {
+                    "text": "Enter customizations for your image below. The first column is a free-form text field that can only contain alphanumerics and no spaces. The second column is the blob name and is case-sensitive. The third column is for any arguments."
+                  }
+                },
+                {
+                  "name": "customizations",
+                  "type": "Microsoft.Common.EditableGrid",
+                  "ariaLabel": "Customizations",
+                  "label": "Customizations",
+                  "visible": "[steps('customizations').customSoftware.installCustomSoftware]",
+                  "constraints": {
+                    "width": "Full",
+                    "rows": {
+                      "count": {
+                        "min": 0,
+                        "max": 10
+                      }
+                    },
+                    "columns": [
+                      {
+                        "id": "name",
+                        "header": "Name",
+                        "width": "1fr",
+                        "element": {
+                          "type": "Microsoft.Common.TextBox",
+                          "placeholder": "Example: vscode",
+                          "constraints": {
+                            "required": true,
+                            "validations": []
+                          }
+                        }
+                      },
+                      {
+                        "id": "blobname",
+                        "header": "Blobname",
+                        "width": "10fr",
+                        "element": {
+                          "type": "Microsoft.Common.TextBox",
+                          "placeholder": "Example: VSCodeSetup-x64-1.81.1.exe",
+                          "constraints": {
+                            "allowedValues": [
+                              {
+                                "label": "blobname",
+                                "value": "text"
+                              }
+                            ],
+                            "required": true
+                          }
+                        }
+                      },
+                      {
+                        "id": "arguments",
+                        "header": "Arguments",
+                        "width": "10fr",
+                        "element": {
+                          "type": "Microsoft.Common.TextBox",
+                          "placeholder": "Example: /silent /mergetasks='!runcode'",
+                          "constraints": {
+                            "allowedValues": [
+                              {
+                                "label": "Arguments",
+                                "value": "text"
+                              }
+                            ],
+                            "required": false
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "office",
+              "type": "Microsoft.Common.Section",
+              "label": "Microsoft 365 Applications",
+              "elements": [
+                {
+                  "name": "installOffice",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Office",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Office",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  }
+                },
+                {
+                  "name": "officeBlob",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Office Installer (.exe)",
+                  "defaultValue": "officedeploymenttool_16626-20148.exe",
+                  "toolTip": "Input the file / blob name for the AVD Agent installer.",
+                  "placeholder": "",
+                  "multiLine": false,
+                  "constraints": {
+                    "required": true,
+                    "validations": [
+                      {
+                        "regex": ".*\\.exe$",
+                        "message": "The file name must end with '.exe'."
+                      }
+                    ]
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installAccess",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "InstallAccess",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Access",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installExcel",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "installExcel",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Excel",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installOneDrive",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install One Dive For Business",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to Install One Dive For Business",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installOneNote",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install OneNote",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install OneNote",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installOutlook",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Outlook",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Outlook",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installPowerPoint",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install PowerPoint",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to Install PowerPoint",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installProject",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Project",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Project",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installPublisher",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Publisher",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Publisher",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installSkypeForBusiness",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Skype For Business",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Skype For Business",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installVisio",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "installVisio",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Visio",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installWord",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Word",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Word",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": "[steps('customizations').office.installOffice]"
+                },
+                {
+                  "name": "installTeams",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Teams",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Teams",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": true
+                },
+                {
+                  "name": "teamsBlob",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Team Installer (.msi)",
+                  "defaultValue": "Teams_windows_x64.msi",
+                  "toolTip": "Input the file / blob name for the Teams installer.",
+                  "placeholder": "",
+                  "multiLine": false,
+                  "constraints": {
+                    "required": true,
+                    "validations": [
+                      {
+                        "regex": ".*\\.msi$",
+                        "message": "The file name must end with '.msi'."
+                      }
+                    ]
+                  },
+                  "visible": "[steps('customizations').office.installTeams]"
+                },
+                {
+                  "name": "msrdcwebrtcsvcInstaller",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Remote Desktop WebRTC Redirector Service Installer (.msi)",
+                  "defaultValue": "MsRdcWebRTCSvc_HostSetup_1.33.2302.07001_x64.msi",
+                  "toolTip": "Input the file / blob name for the Remote Desktop WebRTC Redirector Service installer.",
+                  "placeholder": "",
+                  "multiLine": false,
+                  "constraints": {
+                    "required": true,
+                    "validations": [
+                      {
+                        "regex": ".*\\.msi$",
+                        "message": "The file name must end with '.msi'."
+                      }
+                    ]
+                  },
+                  "visible": "[steps('customizations').office.installTeams]"
+                },
+                {
+                  "name": "vcRedistInstaller",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Microsoft Visual C++ Redistributable Installer (.exe)",
+                  "defaultValue": "VC_redist.x64.exe",
+                  "toolTip": "Input the file / blob name for the Microsoft Visual C++ Redistributable installer.",
+                  "placeholder": "",
+                  "multiLine": false,
+                  "constraints": {
+                    "required": true,
+                    "validations": [
+                      {
+                        "regex": ".*\\.exe$",
+                        "message": "The file name must end with '.exe'."
+                      }
+                    ]
+                  },
+                  "visible": "[steps('customizations').office.installTeams]"
+                }
+              ]
+            },
+            {
+              "name": "updates",
+              "type": "Microsoft.Common.Section",
+              "label": "Microsoft Software Updates",
+              "elements": [
+                {
+                  "name": "installUpdates",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Windows Updates",
+                  "defaultValue": "No",
+                  "toolTip": "Select 'Yes' to install updates and specify an update source.",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "Yes",
+                        "value": true
+                      },
+                      {
+                        "label": "No",
+                        "value": false
+                      }
+                    ],
+                    "required": false
+                  }
+                },
+                {
+                  "name": "updateService",
+                  "type": "Microsoft.Common.DropDown",
+                  "label": "Software update service",
+                  "defaultValue": "Microsoft Update",
+                  "toolTip": "Select the appropriate update source for your environment.",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "Microsoft Update",
+                        "value": "MU"
+                      },
+                      {
+                        "label": "Windows Update",
+                        "value": "WU"
+                      },
+                      {
+                        "label": "Windows Server Update Services (WSUS)",
+                        "value": "WSUS"
+                      },
+                      {
+                        "label": "DCAT (Flighting updates like previews, rarely used)",
+                        "value": "DCAT"
+                      },
+                      {
+                        "label": "Microsoft Store",
+                        "value": "STORE"
+                      },
+                      {
+                        "label": "Other",
+                        "value": "OTHER"
+                      }
+                    ],
+                    "required": false
+                  },
+                  "visible": "[if(equals(steps('customizations').updates.installUpdates, true), true, false)]"
+                },
+                {
+                  "name": "wsusServer",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "WSUS Url",
+                  "placeholder": "https://wsus.corp.contoso.com:8531",
+                  "toolTip": "Specify an accessible WSUS server. Include the port if necessary.",
+                  "constraints": {
+                    "required": true
+                  },
+                  "visible": "[if(equals(steps('customizations').updates.updateService, 'WSUS'), true, false)]"
+                }
+              ]
+            },
+            {
+              "name": "specialitySoftware",
+              "type": "Microsoft.Common.Section",
+              "label": "Speciality Software",
+              "elements": [
+                {
+                  "name": "installVirtualDesktopOptimizationTool",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install Virtual Desktop OptimizationTool",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install Virtual Desktop OptimizationTool",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  },
+                  "visible": true
+                },
+                {
+                  "name": "vDotBlob",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Virtual Desktop Optimization Tool File Name (.zip)",
+                  "defaultValue": "Virtual-Desktop-Optimization-Tool-main.zip",
+                  "toolTip": "Input the file / blob name for the VDOT installer zip.",
+                  "placeholder": "",
+                  "multiLine": false,
+                  "constraints": {
+                    "required": true,
+                    "validations": [
+                      {
+                        "regex": ".*\\.zip$",
+                        "message": "The file name must end with '.zip'."
+                      }
+                    ]
+                  },
+                  "visible": "[steps('customizations').specialitySoftware.installVirtualDesktopOptimizationTool]"
+                },
+                {
+                  "name": "installArcGisPro",
+                  "type": "Microsoft.Common.OptionsGroup",
+                  "label": "Install ArcGis Pro",
+                  "defaultValue": "false",
+                  "toolTip": "Select True to install ArcGisPro",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "true",
+                        "value": true
+                      },
+                      {
+                        "label": "false",
+                        "value": false
+                      }
+                    ],
+                    "required": true
+                  }
+                },
+                {
+                  "name": "arcGisBlob",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "ArcGIS Pro Installer ZIP File (.zip)",
+                  "defaultValue": "ArcGISPro.zip",
+                  "toolTip": "Input the file / blob name for the arcgispro installer zip.",
+                  "placeholder": "",
+                  "multiLine": false,
+                  "constraints": {
+                    "required": true,
+                    "validations": [
+                      {
+                        "regex": ".*\\.zip$",
+                        "message": "The file name must end with '.zip'."
+                      }
+                    ]
+                  },
+                  "visible": "[steps('customizations').specialitySoftware.installArcGisPro]"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "virtualMachines",
+          "label": "Virtual Machines",
+          "elements": [
+            {
+              "name": "vmSkusApi",
+              "type": "Microsoft.Solutions.ArmApiControl",
+              "request": {
+                "method": "GET",
+                "path": "[decodeUriComponent(concat(encodeUriComponent(steps('basics').scope.subscription.id), '%2Fproviders%2FMicrosoft.Compute%2Fskus%3Fapi-version%3D2021-07-01%26%24filter%3Dlocation%20eq%20%27', steps('basics').scope.location.name, '%27'))]"
+              }
+            },
+            {
+              "name": "vmSize",
+              "type": "Microsoft.Compute.SizeSelector",
+              "label": "Size",
+              "toolTip": "Select the size of the build virtual machine.",
+              "recommendedSizes": [
+                "Standard_D4ads_v5"
+              ],
+              "options": {
+                "hideDiskTypeFilter": false
+              },
+              "osPlatform": "Windows",
+              "count": 1,
+              "visible": true
+            },
+            {
+              "name": "localAdminCredentials",
+              "type": "Microsoft.Common.Section",
+              "visible": true,
+              "label": "Local administrator credential",
+              "elements": [
+                {
+                  "name": "username",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Username",
+                  "defaultValue": "",
+                  "placeholder": "Example: xadmin",
+                  "toolTip": "Input the username for the local administrator account.",
+                  "constraints": {
+                    "required": true,
+                    "regex": "",
+                    "validationMessage": ""
+                  },
+                  "visible": true
+                },
+                {
+                  "name": "password",
+                  "type": "Microsoft.Common.PasswordBox",
+                  "label": {
+                    "password": "Password",
+                    "confirmPassword": "Confirm Password"
+                  },
+                  "toolTip": "Input the password for the local administrator account.",
+                  "constraints": {
+                    "required": true,
+                    "regex": "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=_!*<>()])(?=\\S+$).{12,123}$",
+                    "validationMessage": "The value must be within 12 to 123 characters, be alphanumeric, and include 1 lower case character, 1 upper case character, 1 number, and 1 special character that is not '\\' or '-'."
+                  },
+                  "options": {
+                    "hideConfirmation": false
+                  },
+                  "visible": true
+                }
+              ]
+            },
+            {
+              "name": "hybridUseBenefit",
+              "type": "Microsoft.Common.CheckBox",
+              "label": "Enable hybrid use benefit",
+              "defaultValue": false,
+              "toolTip": "Enables the hybrid use benefit to reduce the cost of Azure virutal machines when the appropriate licensing and software assurance has been purchased."
+            },
+            {
+              "name": "exemption",
+              "type": "Microsoft.Common.EditableGrid",
+              "ariaLabel": "Enter the policy IDs to exempt to prevent virtual machine extensions on the imaging virtual machines.",
+              "label": "Policy Exemptions",
+              "constraints": {
+                "width": "Full",
+                "rows": {
+                  "count": {
+                    "min": 0,
+                    "max": 100
+                  }
+                },
+                "columns": [
+                  {
+                    "id": "id",
+                    "header": "Policy Assignment Resource IDs for Exemption",
+                    "width": "1fr",
+                    "element": {
+                      "type": "Microsoft.Common.TextBox",
+                      "placeholder": "",
+                      "constraints": {
+                        "required": true,
+                        "validations": []
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "automation",
+          "label": "Automation",
+          "elements": [
+            {
+              "name": "automation",
+              "type": "Microsoft.Common.Section",
+              "label": "Build Automation",
+              "visible": true,
+              "elements": [
+                {
+                  "name": "enable",
+                  "type": "Microsoft.Common.CheckBox",
+                  "label": "Enable build automation",
+                  "defaultValue": true,
+                  "toolTip": "Enables the automation of image builds using an Automation Account in a zero trust compliant configuration."
+                }
+              ]
+            },
+            {
+              "name": "hybridWorker",
+              "type": "Microsoft.Common.Section",
+              "label": "Hybrid Worker",
+              "visible": "[steps('automation').automation.enable]",
+              "elements": [
+                {
+                  "name": "domainJoin",
+                  "type": "Microsoft.Common.CheckBox",
+                  "label": "Domain Join",
+                  "defaultValue": true,
+                  "toolTip": "Enables the automation of image builds using an Automation Account in a zero trust compliant configuration."
+                },
+                {
+                  "name": "domainName",
+                  "type": "Microsoft.Common.TextBox",
+                  "visible": "[steps('automation').hybridWorker.domainJoin]",
+                  "label": "Domain Name",
+                  "toolTip": "Provide the domain name for Active Directory Domain Services.",
+                  "placeholder": "Example: contoso.com",
+                  "constraints": {
+                    "required": true
+                  }
+                },
+                {
+                  "name": "ouPath",
+                  "type": "Microsoft.Common.TextBox",
+                  "visible": "[steps('automation').hybridWorker.domainJoin]",
+                  "label": "OU Path",
+                  "toolTip": "Input the distinguished name of the desired organization unit for the AVD session hosts.",
+                  "placeholder": "Example: OU=imaging,OU=avd,DC=contoso,DC=com",
+                  "constraints": {
+                    "required": true
+                  }
+                },
+                {
+                  "name": "domainJoinUserPrincipalName",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Domain join user principal name",
+                  "visible": "[steps('automation').hybridWorker.domainJoin]",
+                  "toolTip": "Enter the user principal name with domain join privileges.",
+                  "placeholder": "Example: domainjoin@contoso.com",
+                  "constraints": {
+                    "required": true,
+                    "regex": "^[a-z0-9A-Z_.-]+@(?:[a-z0-9]+\\.)+[a-z]+$",
+                    "validationMessage": "The value must be a valid user principal name."
+                  }
+                },
+                {
+                  "name": "domainJoinPassword",
+                  "type": "Microsoft.Common.PasswordBox",
+                  "label": {
+                    "password": "Domain join password"
+                  },
+                  "visible": "[steps('automation').hybridWorker.domainJoin]",
+                  "toolTip": "Enter a password that is alphanumeric, contains at least 12 characters, 1 letter, 1 number and 1 special character.",
+                  "constraints": {
+                    "required": true
+                  },
+                  "options": {
+                    "hideConfirmation": true
+                  }
+                }
+              ]
+            },
+            {
+              "name": "monitoring",
+              "type": "Microsoft.Common.Section",
+              "label": "Monitoring",
+              "visible": "[steps('automation').automation.enable]",
+              "elements": [
+                {
+                  "name": "enable",
+                  "type": "Microsoft.Common.CheckBox",
+                  "visible": true,
+                  "label": "Enable monitoring",
+                  "defaultValue": false,
+                  "toolTip": "Deploy the required resources to enable monitoring for the automation runbook."
+                },
+                {
+                  "name": "distributionGroup",
+                  "type": "Microsoft.Common.TextBox",
+                  "visible": "[steps('automation').monitoring.enable]",
+                  "label": "Distribution group",
+                  "toolTip": "Input the distribution group for receiving alerts on the build status.",
+                  "placeholder": "Example: operations@contoso.com",
+                  "constraints": {
+                    "required": true,
+                    "regex": "^[a-z0-9A-Z_.-]+@(?:[a-z0-9]+\\.)+[a-z]+$",
+                    "validationMessage": "The value must be a valid email address."
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "network",
+          "label": "Networking",
+          "elements": [
+            {
+              "name": "networkSection",
+              "label": "Networking",
+              "type": "Microsoft.Common.Section",
+              "elements": [
+                {
+                  "name": "virtualNetworkAddressCidrRange",
+                  "label": "Virtual network CIDR range",
+                  "type": "Microsoft.Common.TextBox",
+                  "defaultValue": "10.0.134.0/24",
+                  "toolTip": "Specify an address CIDR range within the range [10,24].",
+                  "constraints": {
+                    "required": true,
+                    "validations": [
+                      {
+                        "regex": "^(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(?:\/(1[0-9]|2[0-4]))$",
+                        "message": "Invalid CIDR range. The address prefix must be in the range [10,24]."
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "subnetAddressCidrRange",
+                  "label": "Subnet CIDR range",
+                  "type": "Microsoft.Common.TextBox",
+                  "defaultValue": "10.0.134.0/24",
+                  "toolTip": "Specify a CIDR range for the default subnet within the Shared Services Virtual Network range [24].",
+                  "constraints": {
+                    "required": true,
+                    "validations": [
+                      {
+                        "regex": "^(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(?:\/(2[4-8]))$",
+                        "message": "Invalid CIDR range. The address prefix must be in the range [24,28]."
+                      },
+                      {
+                        "isValid": "[if(greaterOrEquals(last(split(steps('network').networkSection.virtualNetworkAddressCidrRange, '/')), 8), equals(last(take(split(first(split(steps('network').networkSection.virtualNetworkAddressCidrRange, '/')), '.'), 1)), last(take(split(first(split(steps('network').networkSection.subnetAddressCidrRange, '/')), '.'), 1))), true)]",
+                        "message": "CIDR range not within virtual network CIDR range (first octet)."
+                      },
+                      {
+                        "isValid": "[if(greaterOrEquals(last(split(steps('network').networkSection.virtualNetworkAddressCidrRange, '/')), 16), equals(last(take(split(first(split(steps('network').networkSection.virtualNetworkAddressCidrRange, '/')), '.'), 2)), last(take(split(first(split(steps('network').networkSection.subnetAddressCidrRange, '/')), '.'), 2))), true)]",
+                        "message": "CIDR range not within virtual network CIDR range (second octet)."
+                      },
+                      {
+                        "isValid": "[if(greaterOrEquals(last(split(steps('network').networkSection.virtualNetworkAddressCidrRange, '/')), 24), equals(last(take(split(first(split(steps('network').networkSection.virtualNetworkAddressCidrRange, '/')), '.'), 3)), last(take(split(first(split(steps('network').networkSection.subnetAddressCidrRange, '/')), '.'), 3))), true)]",
+                        "message": "CIDR range not within virtual network CIDR range (third octet)."
+                      },
+                      {
+                        "isValid": "[lessOrEquals(last(split(steps('network').networkSection.virtualNetworkAddressCidrRange, '/')), last(split(steps('network').networkSection.subnetAddressCidrRange, '/')))]",
+                        "message": "CIDR range not within virtual network CIDR range (subnet mask)."
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "flowLogsSection",
+              "label": "Network Watcher Flow Logs",
+              "type": "Microsoft.Common.Section",
+              "elements": [
+                {
+                  "name": "flowLogsDescription",
+                  "type": "Microsoft.Common.TextBlock",
+                  "options": {
+                    "text": "To support the on-going security and compliance of your landing zone, MLZ configures network watcher flow logs for virtual networks by default. Flow logs capture information about IP traffic flowing through your virtual Networks or network security groups. Flow log data can be used to troubleshoot network connectivity issues, monitor network traffic, and detect and diagnose security threats.",
+                    "link": {
+                      "label": "Click here to learn more about network watcher flow logs",
+                      "uri": "https://learn.microsoft.com/azure/network-watcher/network-watcher-overview#flow-logs"
+                    }
+                  }
+                },
+                {
+                  "name": "flowLogsType",
+                  "label": "Flow Logs Type",
+                  "type": "Microsoft.Common.DropDown",
+                  "defaultValue": "Virtual Network (recommended)",
+                  "toolTip": "Select the type of flow logs to deploy.",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "Virtual Network (recommended)",
+                        "value": "VirtualNetwork"
+                      },
+                      {
+                        "label": "Network Security Group",
+                        "value": "NetworkSecurityGroup"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "nsgFlowLogsRetirementWarning",
+                  "type": "Microsoft.Common.InfoBox",
+                  "visible": "[equals(steps('network').flowLogsSection.flowLogsType, 'deployNetworkSecurityGroupFlowLogs')]",
+                  "options": {
+                    "style": "Warning",
+                    "text": "NSG flow logs are scheduled for retirement on June 30, 2025. All customers should move to VNet flow logs which offer more logging and visibility. Click here learn more about NSG flow log retirement",
+                    "uri": "https://learn.microsoft.com/azure/network-watcher/nsg-flow-logs-overview"
+                  }
+                },
+                {
+                  "name": "retentionDays",
+                  "label": "Retention Days",
+                  "type": "Microsoft.Common.TextBox",
+                  "defaultValue": "30",
+                  "toolTip": "Enter the number of days to retain the network watcher flow logs. If you want to retain the data forever and do not want to apply any retention policy, set retention (days) to 0.",
+                  "constraints": {
+                    "required": true,
+                    "regex": "^36[0-5]$|^3[0-5][0-9]$|^[1-2][0-9][0-9]$|^[0-9][0-9]$|^[0-9]$",
+                    "message": "The value must be between 0 and 365."
+                  }
+                },
+                {
+                  "name": "deployTrafficAnalytics",
+                  "label": "Enable Traffic Analytics",
+                  "type": "Microsoft.Common.CheckBox",
+                  "defaultValue": false,
+                  "toolTip": "Enable this option to deploy Network Watcher Traffic Analytics."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "compliance",
+          "label": "Compliance",
+          "elements": [
+            {
+              "name": "defenderForCloud",
+              "label": "Defender for Cloud",
+              "type": "Microsoft.Common.Section",
+              "elements": [
+                {
+                  "name": "workspaceSettingsApi",
+                  "type": "Microsoft.Solutions.ArmApiControl",
+                  "request": {
+                    "method": "GET",
+                    "path": "[concat(steps('basics').scope.subscription.id, '/providers/Microsoft.Security/workspaceSettings?api-version=2017-08-01-preview')]"
+                  }
+                },
+                {
+                  "name": "deployDefender",
+                  "type": "Microsoft.Common.CheckBox",
+                  "label": "Enable Defender for Cloud?",
+                  "toolTip": "Check here to to deploy defender for cloud to the target subscription.",
+                  "constraints": {
+                    "required": false
+                  }
+                },
+                {
+                  "name": "emailSecurityContact",
+                  "type": "Microsoft.Common.TextBox",
+                  "label": "Email Address for Security Notifications",
+                  "defaultValue": "",
+                  "toolTip": "Please enter a valid email address for the security team.",
+                  "constraints": {
+                    "required": true,
+                    "regex": "^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$",
+                    "validationMessage": "Email is not valid. Please re-enter."
+                  },
+                  "visible": "[steps('compliance').defenderForCloud.deployDefender]"
+                }
+              ]
+            },
+            {
+              "name": "policySection",
+              "label": "Azure Policy",
+              "type": "Microsoft.Common.Section",
+              "elements": [
+                {
+                  "name": "policySubsetDetailsTextBlock",
+                  "type": "Microsoft.Common.TextBlock",
+                  "options": {
+                    "text": "Mission Landing Zone comes bundled with a relevant subset of available Azure policies."
+                  }
+                },
+                {
+                  "name": "policyOptionalTextBlock",
+                  "type": "Microsoft.Common.TextBlock",
+                  "options": {
+                    "text": "Enabling policies is optional, but recommended."
+                  }
+                },
+                {
+                  "name": "deployPolicy",
+                  "type": "Microsoft.Common.CheckBox",
+                  "label": "Deploy policy assignments?",
+                  "toolTip": "Check here to create policy assignments for the resources created by Mission Landing Zone.",
+                  "constraints": {
+                    "required": false
+                  }
+                },
+                {
+                  "name": "policy",
+                  "type": "Microsoft.Common.DropDown",
+                  "label": "Policy Assignment",
+                  "placeholder": "",
+                  "defaultValue": "NIST SP 800-53",
+                  "toolTip": "DoD IL5 is only available in AzureUsGovernment and will switch to NISTRev4 if tried in AzureCloud.",
+                  "multiselect": false,
+                  "selectAll": false,
+                  "filter": true,
+                  "filterPlaceholder": "Filter items ...",
+                  "multiLine": true,
+                  "defaultDescription": "Select one of the bundled built-in policy assignments.",
+                  "constraints": {
+                    "allowedValues": [
+                      {
+                        "label": "NIST SP 800-53 Rev4",
+                        "description": "The US National Institute of Standards and Technology (NIST) publishes a catalog of security and privacy controls, Special Publication (SP) 800-53, for all federal information systems in the United States (except those related to national security).",
+                        "value": "NISTRev4"
+                      },
+                      {
+                        "label": "NIST SP 800-53 Rev5",
+                        "description": "The US National Institute of Standards and Technology (NIST) publishes a catalog of security and privacy controls, Special Publication (SP) 800-53, for all federal information systems in the United States (except those related to national security).",
+                        "value": "NISTRev5"
+                      },
+                      {
+                        "label": "DoD IL5",
+                        "description": "The Defense Information Systems Agency (DISA) is an agency of the US Department of Defense (DoD) that is responsible for developing and maintaining the DoD Cloud Computing Security Requirements Guide (SRG). These policies are only available for AzureUsGovernment and will switch to NISTRev4 if tried in AzureCloud.",
+                        "value": "IL5"
+                      },
+                      {
+                        "label": "CMMC",
+                        "description": "The Cybersecurity Maturity Model Certification (CMMC) is a new framework developed by the US Department of Defense (DoD) that requires formal third-party audits of defense industrial base (DIB) contractor cybersecurity practices.",
+                        "value": "CMMC"
+                      }
+                    ]
+                  },
+                  "visible": "[steps('compliance').policySection.deployPolicy]"
+                }
+              ]
+            },
+            {
+              "name": "virtualNetworkApi",
+              "type": "Microsoft.Solutions.ArmApiControl",
+              "request": {
+                "method": "GET",
+                "path": "[concat(steps('basics').hub.virtualNetwork, '?api-version=2023-09-01')]"
+              }
+            },
+            {
+              "name": "logAnalyticsWorkspace",
+              "type": "Microsoft.Solutions.ResourceSelector",
+              "label": "Existing Log Analytics Workspace for Central Logging (Spoke)",
+              "visible": true,
+              "resourceType": "Microsoft.OperationalInsights/workspaces",
+              "toolTip": "Select the log analytics workspace to capture runbook log output."
+            },
+            {
+              "name": "diagnosticSettingsApi",
+              "type": "Microsoft.Solutions.ArmApiControl",
+              "request": {
+                "method": "GET",
+                "path": "[concat(steps('basics').scope.subscription.id, '/providers/Microsoft.Insights/diagnosticSettings?api-version=2021-05-01-preview')]"
+              }
+            }
+          ]
+        },
+        {
+          "name": "tags",
+          "label": "Tags",
+          "elements": [
+            {
+              "name": "tags",
+              "type": "Microsoft.Common.TagsByResource",
+              "resources": [
+                "Microsoft.Automation/automationAccounts",
+                "Microsoft.Compute/diskEncryptionSets",
+                "Microsoft.Compute/galleries",
+                "Microsoft.Compute/virtualMachines",
+                "Microsoft.Insights/actionGroups",
+                "Microsoft.Insights/scheduledQueryRules",
+                "Microsoft.KeyVault/vaults",
+                "Microsoft.ManagedIdentity/userAssignedIdentities",
+                "Microsoft.Network/networkInterfaces",
+                "Microsoft.Network/networkSecurityGroups",
+                "Microsoft.Network/privateEndpoints",
+                "Microsoft.Network/routeTables",
+                "Microsoft.Network/virtualNetworks",
+                "Microsoft.Resources/resourceGroups",
+                "Microsoft.Resources/templateSpecs",
+                "Microsoft.Storage/storageAccounts"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "outputs": {
+      "parameters": {
+        "arcGisProInstaller": "[if(equals(steps('customizations').specialitySoftware.installArcGisPro, true), steps('customizations').specialitySoftware.arcGisBlob.blobName,'')]",
+        "azureFirewallResourceId": "[steps('basics').hub.azureFirewall]",
+        "computeGalleryImageResourceId": "[if(equals(steps('image').source.type, 'AzureComputeGallery'), steps('image').source.gallery.imageDefinition, '')]",
+        "containerName": "[first(skip(split(steps('basics').artifacts.container, '/'), 12))]",
+        "customizations": "[if(equals(steps('customizations').customSoftware.installCustomSoftware, true), steps('customizations').customSoftware.customizations,'')]",
+        "deployActivityLogDiagnosticSetting": "[empty(steps('compliance').diagnosticSettingsApi.value)]",
+        "deployDefender": "[and(steps('compliance').defenderForCloud.deployDefender, empty(steps('compliance').defenderForCloud.workspaceSettingsApi.value))]",
+        "deployNetworkWatcherTrafficAnalytics": "[steps('network').flowLogsSection.deployTrafficAnalytics]",        
+        "deployPolicy": "[steps('compliance').policySection.deployPolicy]",
+        "distributionGroup": "[if(and(steps('automation').automation.enable, steps('automation').monitoring.enable), steps('automation').monitoring.distributionGroup, '')]",
+        "domainJoinPassword": "[steps('automation').hybridWorker.domainJoinPassword]",
+        "domainJoinUserPrincipalName": "[steps('automation').hybridWorker.domainJoinUserPrincipalName]",
+        "domainName": "[if(steps('automation').automation.enable, steps('automation').hybridWorker.domainName, '')]",
+        "emailSecurityContact": "[if(and(steps('compliance').defenderForCloud.deployDefender, empty(steps('compliance').defenderForCloud.workspaceSettingsApi.value)), steps('compliance').defenderForCloud.emailSecurityContact, '')]",
+        "enableBuildAutomation": "[steps('automation').automation.enable]",
+        "environmentAbbreviation": "[steps('basics').naming.environment]",
+        "excludeFromLatest": "[steps('image').destination.excludeFromLatest]",
+        "exemptPolicyAssignmentIds": "[map(steps('virtualMachines').exemption, (item) => item.id)]",
+        "hubVirtualNetworkResourceId": "[steps('basics').hub.virtualNetwork]",
+        "hybridUseBenefit": "[steps('virtualMachines').hybridUseBenefit]",
+        "identifier": "[steps('basics').naming.identifier]",
+        "imageDefinitionNamePrefix": "[steps('image').destination.imageDefinitionNamePrefix]",
+        "imageMajorVersion": "[steps('image').destination.majorVersion]",
+        "imageMinorVersion": "[steps('image').destination.minorVersion]",
+        "imagePatchVersion": "[steps('image').destination.patchVersion]",
+        "installAccess": "[if(steps('customizations').office.installOffice, steps('customizations').office.installAccess,'false')]",
+        "installArcGisPro": "[if(steps('customizations').specialitySoftware.installArcGisPro, steps('customizations').specialitySoftware.installArcGisPro,'false')]",
+        "installExcel": "[if(steps('customizations').office.installOffice, steps('customizations').office.installExcel,'false')]",
+        "installOneDrive": "[if(steps('customizations').office.installOffice, steps('customizations').office.installOneDrive,'false')]",
+        "installOneNote": "[if(steps('customizations').office.installOffice, steps('customizations').office.installOneNote,'false')]",
+        "installOutlook": "[if(steps('customizations').office.installOffice, steps('customizations').office.installOutlook,'false')]",
+        "installPowerPoint": "[if(steps('customizations').office.installOffice, steps('customizations').office.installPowerPoint,'false')]",
+        "installProject": "[if(steps('customizations').office.installOffice, steps('customizations').office.installProject,'false')]",
+        "installPublisher": "[if(steps('customizations').office.installOffice, steps('customizations').office.installPublisher,'false')]",
+        "installSkypeForBusiness": "[if(steps('customizations').office.installOffice, steps('customizations').office.installSkypeForBusiness,'false')]",
+        "installTeams": "[steps('customizations').office.installTeams]",
+        "installUpdates": "[steps('customizations').updates.installUpdates]",
+        "installVirtualDesktopOptimizationTool": "[steps('customizations').specialitySoftware.installVirtualDesktopOptimizationTool]",
+        "installVisio": "[if(steps('customizations').office.installOffice, steps('customizations').office.installVisio,'false')]",
+        "installWord": "[if(steps('customizations').office.installOffice, steps('customizations').office.installWord,'false')]",
+        "location": "[steps('basics').scope.location.name]",
+        "marketplaceImageOffer": "[if(equals(steps('image').source.type, 'AzureMarketplace'), steps('image').source.offer, '')]",
+        "marketplaceImagePublisher": "[if(equals(steps('image').source.type, 'AzureMarketplace'), steps('image').source.publisher, '')]",
+        "marketplaceImageSKU": "[if(equals(steps('image').source.type, 'AzureMarketplace'), steps('image').source.sku, '')]",
+        "msrdcwebrtcsvcInstaller": "[if(steps('customizations').office.installTeams, steps('customizations').office.msrdcwebrtcsvcInstaller.blobName,'')]",
+        "networkWatcherFlowLogsRetentionDays": "[steps('network').flowLogsSection.retentionDays]",
+        "networkWatcherFlowLogsType": "[steps('network').flowLogsSection.flowLogsType]",
+        "officeInstaller": "[if(steps('customizations').office.installOffice, steps('customizations').office.officeBlob.blobName,'')]",
+        "oUPath": "[if(and(steps('automation').automation.enable, steps('automation').hybridWorker.domainJoin), steps('automation').hybridWorker.ouPath, '')]",
+        "policy": "[if(steps('compliance').policySection.deployPolicy, steps('compliance').policySection.policy, '')]",
+        "replicaCount": "[steps('image').destination.replicaCount]",
+        "sourceImageType": "[steps('image').source.type]",
+        "spokeLogAnalyticsWorkspaceResourceId": "[steps('compliance').logAnalyticsWorkspace.id]",
+        "storageAccountResourceId": "[steps('basics').artifacts.storageSelector.id]",
+        "subnetAddressPrefix": "[steps('network').networkSection.subnetAddressCidrRange]",
+        "tags": "[steps('tags').tags]",
+        "teamsInstaller": "[if(steps('customizations').office.installTeams, steps('customizations').office.teamsBlob.blobName,'')]",
+        "updateService": "[if(steps('customizations').updates.installUpdates, steps('customizations').updates.updateService, 'MU')]",
+        "vcRedistInstaller": "[if(steps('customizations').office.installTeams, steps('customizations').office.vcRedistInstaller.blobName,'')]",
+        "vDOTInstaller": "[if(steps('customizations').specialitySoftware.installVirtualDesktopOptimizationTool, steps('customizations').specialitySoftware.vDotBlob.blobName,'')]",
+        "virtualMachineAdminPassword": "[steps('virtualMachines').localAdminCredentials.password]",
+        "virtualMachineAdminUsername": "[steps('virtualMachines').localAdminCredentials.username]",
+        "virtualMachineSize": "[steps('virtualMachines').vmSize]",
+        "virtualNetworkAddressPrefix": "[steps('network').networkSection.virtualNetworkAddressCidrRange]",
+        "wsusServer": "[if(equals(steps('customizations').updates.updateService, 'WSUS'), steps('customizations').updates.wsusServer, '')]"
+      },
+      "kind": "Subscription",
+      "location": "[steps('basics').scope.location.name]",
+      "subscriptionId": "[steps('basics').scope.subscription.id]"
+    }
+  }
+}

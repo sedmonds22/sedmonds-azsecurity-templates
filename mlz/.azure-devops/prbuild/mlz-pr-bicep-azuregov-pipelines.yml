@@ -1,0 +1,26 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# disable CI per:
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/repos/github?view=azure-devops&tabs=yaml#disabling-the-ci-trigger
+trigger: none
+
+pr:
+  branches:
+    include:
+    - main
+
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+
+- job: bicepGovCloud
+  displayName: "PR Checks for Mission LZ Bicep on AzureUsGovernment"
+
+  steps:
+  - template: templates/az-what-if.yml
+    parameters:
+      ServiceConnectionName: $(GAzureConnection)
+      DeploymentName: $(bDeploymentName)
+      Location: $(GLocation)

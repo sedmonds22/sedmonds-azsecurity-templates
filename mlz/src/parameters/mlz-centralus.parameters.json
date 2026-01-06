@@ -1,0 +1,75 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "identifier": {
+      "value": "mlzc"
+    },
+    "environmentAbbreviation": {
+      "value": "dev"
+    },
+    "location": {
+      "value": "centralus"
+    },
+    "hubSubscriptionId": {
+      "value": "a3c32389-f2a2-40c1-a08f-f21215a4f936"
+    },
+    "identitySubscriptionId": {
+      "value": "a3c32389-f2a2-40c1-a08f-f21215a4f936"
+    },
+    "operationsSubscriptionId": {
+      "value": "a3c32389-f2a2-40c1-a08f-f21215a4f936"
+    },
+    "sharedServicesSubscriptionId": {
+      "value": "a3c32389-f2a2-40c1-a08f-f21215a4f936"
+    },
+    "deployDefender": {
+      "value": false
+    },
+    "deployBastion": {
+      "value": false
+    },
+    "deployLinuxVirtualMachine": {
+      "value": false
+    },
+    "deployWindowsVirtualMachine": {
+      "value": false
+    },
+    "deploySentinel": {
+      "value": true
+    },
+    "enableEntityBehavior": {
+      "value": true
+    },
+    "deployEntityBehaviorSetting": {
+      "value": false
+    },
+    "deployUebaSetting": {
+      "value": false
+    },
+    "enableUeba": {
+      "value": true
+    },
+    "enableAnomalies": {
+      "value": true
+    },
+    "deploySentinelAutomationScript": {
+      "value": false
+    },
+    "enableAzureActivityDataConnector": {
+      "value": true
+    },
+    "enableEntraIdDataConnector": {
+      "value": true
+    },
+    "logAnalyticsWorkspaceRetentionInDays": {
+      "value": 120
+    },
+    "tags": {
+      "value": {
+        "environment": "centralus-dev",
+        "workload": "mlz-sentinel"
+      }
+    }
+  }
+}

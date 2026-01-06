@@ -1,0 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# Mac files
+.DS_Store
+
+# (Minimal repository-global ignores only)

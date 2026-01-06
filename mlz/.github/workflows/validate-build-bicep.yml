@@ -1,0 +1,44 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+---
+
+name: validate-build-bicep
+on:
+  pull_request_target:
+    branches: [main]
+    paths:
+    - 'src/**'
+    - '!src/**.md'
+env:
+  BICEP_VERSION: ''
+jobs:
+  validate-build:
+    runs-on: ubuntu-latest
+    permissions: 
+      actions: read
+      checks: read
+      contents: write
+      deployments: write
+      issues: read
+      discussions: read
+      packages: none
+      pages: read
+      pull-requests: write
+      repository-projects: read
+      security-events: write
+      statuses: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          az bicep install
+          az bicep version
+          az bicep build --file src/mlz.bicep --outfile src/mlz.json
+          if [[ $(git status --porcelain) ]]; then
+            git add src/mlz.json
+            git commit -m "GitHub Action: Build Bicep to JSON"
+            git push origin HEAD:"$GITHUB_HEAD_REF"
+          fi

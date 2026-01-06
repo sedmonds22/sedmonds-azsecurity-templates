@@ -1,0 +1,34 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+schedules:
+
+  - cron: "0 4 * * *"
+    displayName: "Nightly - mlz bicep azure US Gov Cloud"
+    branches:
+      include:
+        - main
+    always: true
+
+pool:
+
+  vmImage: ubuntu-latest
+
+jobs:
+
+- job: bicepGovCloud
+  displayName: "Nightly deployment of Mission LZ Bicep on AzureUsGovernment"
+
+  steps:
+
+  - template: templates/az-deployment.yml
+    parameters:
+      ServiceConnectionName: $(GAzureConnection)
+      DeploymentName: $(bDeploymentName)
+      Location: $(GLocation)
+      WorkloadSubId: $(GSubId)
+      WorkloadName: $(workloadName)
+
+  - template: templates/clean-az-subscription.yml
+    parameters:
+      serviceConnectionName: $(GAzureConnection)
