@@ -317,9 +317,9 @@
     },
     "enableEntraIdDataConnector": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
-        "description": "Toggle to configure the Microsoft Entra ID data connector for Microsoft Sentinel and ensure required log types remain enabled."
+        "description": "Toggle to configure the Microsoft Entra ID data connector for Microsoft Sentinel and ensure required log types remain enabled. If this workspace is set as the Primary workspace in Microsoft 365 Defender, connector changes may be blocked in Sentinel; manage the connector in Defender instead."
       }
     },
     "entraDataConnectorLogStates": {
