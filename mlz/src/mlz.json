@@ -4694,6 +4694,21 @@
           "mlzTags": {
             "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.mlzTags.value]"
           },
+          "identifier": {
+            "value": "[parameters('identifier')]"
+          },
+          "environmentAbbreviation": {
+            "value": "[parameters('environmentAbbreviation')]"
+          },
+          "locationAbbreviation": {
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.locationProperties.value.abbreviation]"
+          },
+          "delimiter": {
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.delimiter.value]"
+          },
+          "resourceAbbreviations": {
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceAbbreviations.value]"
+          },
           "tenantId": {
             "value": "[variables('deploymentTenantId')]"
           },
@@ -4720,6 +4735,21 @@
             },
             "deploySentinel": {
               "type": "bool"
+            },
+            "identifier": {
+              "type": "string"
+            },
+            "environmentAbbreviation": {
+              "type": "string"
+            },
+            "locationAbbreviation": {
+              "type": "string"
+            },
+            "delimiter": {
+              "type": "string"
+            },
+            "resourceAbbreviations": {
+              "type": "object"
             },
             "enableAzureActivityConnector": {
               "type": "bool"
@@ -4798,13 +4828,83 @@
               "type": "object"
             }
           },
+          "variables": {
+            "resourceToken": "resource_token",
+            "securityNamingConvention": "[format('{0}{1}{2}{1}{3}{1}security{1}{4}', toLower(parameters('identifier')), parameters('delimiter'), parameters('environmentAbbreviation'), parameters('locationAbbreviation'), variables('resourceToken'))]",
+            "securityResourceGroupName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').resourceGroups)]",
+            "securityLogAnalyticsWorkspaceName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').logAnalyticsWorkspaces)]",
+            "monitoringResourceGroupName": "[if(parameters('deploySentinel'), variables('securityResourceGroupName'), parameters('tier').resourceGroupName)]",
+            "logAnalyticsWorkspaceName": "[if(parameters('deploySentinel'), variables('securityLogAnalyticsWorkspaceName'), parameters('tier').namingConvention.logAnalyticsWorkspace)]"
+          },
           "resources": [
+            {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "[format('ensure-monitoring-rg-{0}', parameters('deploymentNameSuffix'))]",
+              "subscriptionId": "[parameters('tier').subscriptionId]",
+              "location": "[deployment().location]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "mlzTags": {
+                    "value": "[parameters('mlzTags')]"
+                  },
+                  "name": {
+                    "value": "[variables('monitoringResourceGroupName')]"
+                  },
+                  "location": {
+                    "value": "[parameters('location')]"
+                  },
+                  "tags": {
+                    "value": "[parameters('tags')]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.39.26.7824",
+                      "templateHash": "11280921715033613511"
+                    }
+                  },
+                  "parameters": {
+                    "mlzTags": {
+                      "type": "object"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "tags": {
+                      "type": "object",
+                      "defaultValue": {}
+                    }
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Resources/resourceGroups",
+                      "apiVersion": "2019-05-01",
+                      "name": "[parameters('name')]",
+                      "location": "[parameters('location')]",
+                      "tags": "[union(coalesce(tryGet(parameters('tags'), 'Microsoft.Resources/resourceGroups'), createObject()), parameters('mlzTags'))]"
+                    }
+                  ]
+                }
+              }
+            },
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-law-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[parameters('tier').resourceGroupName]",
+              "resourceGroup": "[variables('monitoringResourceGroupName')]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -4821,7 +4921,7 @@
                     "value": "[parameters('mlzTags')]"
                   },
                   "name": {
-                    "value": "[parameters('tier').namingConvention.logAnalyticsWorkspace]"
+                    "value": "[variables('logAnalyticsWorkspaceName')]"
                   },
                   "retentionInDays": {
                     "value": "[parameters('logAnalyticsWorkspaceRetentionInDays')]"
@@ -4993,13 +5093,17 @@
                   }
                 }
               }
+              ,
+              "dependsOn": [
+                "[subscriptionResourceId(parameters('tier').subscriptionId, 'Microsoft.Resources/deployments', format('ensure-monitoring-rg-{0}', parameters('deploymentNameSuffix')))]"
+              ]
             },
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[parameters('tier').resourceGroupName]",
+              "resourceGroup": "[variables('monitoringResourceGroupName')]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -5007,7 +5111,7 @@
                 "mode": "Incremental",
                 "parameters": {
                   "logAnalyticsWorkspaceResourceId": {
-                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
                   },
                   "name": {
                     "value": "[parameters('tier').namingConvention.privateLinkScope]"
@@ -5065,7 +5169,7 @@
                 }
               },
               "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
               ]
             },
             {
@@ -5073,7 +5177,7 @@
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-private-endpoint-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[parameters('tier').resourceGroupName]",
+              "resourceGroup": "[variables('monitoringResourceGroupName')]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -5132,7 +5236,7 @@
                     ]
                   },
                   "privateLinkServiceId": {
-                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
                   },
                   "subnetResourceId": {
                     "value": "[parameters('tier').subnetResourceId]"
@@ -5224,7 +5328,7 @@
                 }
               },
               "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix')))]"
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix')))]"
               ]
             },
             {
@@ -5233,7 +5337,7 @@
               "apiVersion": "2025-04-01",
               "name": "[format('configure-sentinel-settings-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[parameters('tier').resourceGroupName]",
+              "resourceGroup": "[variables('monitoringResourceGroupName')]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -5241,7 +5345,7 @@
                 "mode": "Incremental",
                 "parameters": {
                   "workspaceName": {
-                    "value": "[parameters('tier').namingConvention.logAnalyticsWorkspace]"
+                    "value": "[variables('logAnalyticsWorkspaceName')]"
                   },
                   "location": {
                     "value": "[parameters('location')]"
@@ -5548,7 +5652,7 @@
                 }
               },
               "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
               ]
             },
             {
@@ -5567,7 +5671,7 @@
                     "value": "[parameters('azureActivityDiagnosticSettingName')]"
                   },
                   "workspaceResourceId": {
-                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
                   },
                   "logCategories": {
                     "value": "[parameters('azureActivityLogCategories')]"
@@ -5656,7 +5760,7 @@
                 }
               },
               "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
               ]
             },
             {
@@ -5665,7 +5769,7 @@
               "apiVersion": "2025-04-01",
               "name": "[format('configure-sentinel-connectors-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[parameters('tier').resourceGroupName]",
+              "resourceGroup": "[variables('monitoringResourceGroupName')]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -5673,7 +5777,7 @@
                 "mode": "Incremental",
                 "parameters": {
                   "workspaceName": {
-                    "value": "[parameters('tier').namingConvention.logAnalyticsWorkspace]"
+                    "value": "[variables('logAnalyticsWorkspaceName')]"
                   },
                   "tenantId": {
                     "value": "[parameters('tenantId')]"
@@ -5789,24 +5893,36 @@
                 }
               },
               "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('configure-sentinel-settings-{0}', parameters('deploymentNameSuffix')))]"
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('configure-sentinel-settings-{0}', parameters('deploymentNameSuffix')))]"
               ]
             }
           ],
           "outputs": {
             "logAnalyticsWorkspaceResourceId": {
               "type": "string",
-              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
             },
             "networkInterfaceResourceIds": {
               "type": "array",
               "value": [
-                "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-private-endpoint-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.networkInterfaceResourceId.value]"
+                "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-endpoint-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.networkInterfaceResourceId.value]"
               ]
             },
             "privateLinkScopeResourceId": {
               "type": "string",
-              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+            },
+            "monitoringResourceGroupName": {
+              "type": "string",
+              "value": "[variables('monitoringResourceGroupName')]"
+            },
+            "logAnalyticsWorkspaceName": {
+              "type": "string",
+              "value": "[variables('logAnalyticsWorkspaceName')]"
+            },
+            "monitoringSubscriptionId": {
+              "type": "string",
+              "value": "[parameters('tier').subscriptionId]"
             }
           }
         }
@@ -5831,16 +5947,16 @@
             "value": "[parameters('deploymentNameSuffix')]"
           },
           "workspaceName": {
-            "value": "[filter(reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.tiers.value, lambda('tier', equals(lambdaVariables('tier').name, 'operations')))[0].namingConvention.logAnalyticsWorkspace]"
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.logAnalyticsWorkspaceName.value]"
           },
           "workspaceLocation": {
             "value": "[parameters('location')]"
           },
           "workspaceResourceGroupName": {
-            "value": "[filter(reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.tiers.value, lambda('tier', equals(lambdaVariables('tier').name, 'operations')))[0].resourceGroupName]"
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.monitoringResourceGroupName.value]"
           },
           "workspaceSubscriptionId": {
-            "value": "[filter(reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.tiers.value, lambda('tier', equals(lambdaVariables('tier').name, 'operations')))[0].subscriptionId]"
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.monitoringSubscriptionId.value]"
           },
           "azureActivityWorkbookName": {
             "value": "[parameters('azureActivityWorkbookName')]"
