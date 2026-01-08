@@ -545,8 +545,9 @@
       "apiVersion": "2022-04-01",
       "properties": {
         "displayName": "[parameters('workbookDisplayName')]",
+        "category": "Sentinel",
         "serializedData": "[string(variables('workbookDefinition'))]",
-        "version": "1.0",
+        "version": "Notebook/1.0",
         "sourceId": "[parameters('workspaceResourceId')]"
       },
       "name": "[parameters('workbookName')]",
