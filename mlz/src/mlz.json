@@ -31229,6 +31229,12 @@
         },
         "mode": "Incremental",
         "parameters": {
+          "deploySentinel": {
+            "value": "[parameters('deploySentinel')]"
+          },
+          "enableAzureActivityConnector": {
+            "value": "[parameters('enableAzureActivityDataConnector')]"
+          },
           "bastionDiagnosticsLogs": {
             "value": "[parameters('bastionDiagnosticsLogs')]"
           },
@@ -31307,6 +31313,12 @@
             }
           },
           "parameters": {
+            "deploySentinel": {
+              "type": "bool"
+            },
+            "enableAzureActivityConnector": {
+              "type": "bool"
+            },
             "bastionDiagnosticsLogs": {
               "type": "array"
             },
@@ -31405,6 +31417,7 @@
           },
           "resources": [
             {
+              "condition": "[not(and(parameters('deploySentinel'), parameters('enableAzureActivityConnector')))]",
               "copy": {
                 "name": "activityLogDiagnosticSettings",
                 "count": "[length(variables('dedupedSubscriptionIds'))]"
