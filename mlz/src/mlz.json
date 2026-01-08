@@ -231,14 +231,14 @@
     },
     "enableUeba": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
-        "description": "Toggle to configure UEBA data sources so fusion models have full context."
+        "description": "Toggle to configure UEBA data sources so fusion models have full context. Requires EntityAnalytics to be enabled on the workspace."
       }
     },
     "deployUebaSetting": {
       "type": "bool",
-      "defaultValue": true,
+      "defaultValue": false,
       "metadata": {
         "description": "Skip provisioning the UEBA setting when it already exists to avoid concurrency conflicts."
       }
@@ -5320,14 +5320,14 @@
                     },
                     "enableUeba": {
                       "type": "bool",
-                      "defaultValue": true,
+                      "defaultValue": false,
                       "metadata": {
                         "description": "Toggle to configure UEBA data sources and ensure they participate in the ML fusion models."
                       }
                     },
                     "deployUebaSetting": {
                       "type": "bool",
-                      "defaultValue": true,
+                      "defaultValue": false,
                       "metadata": {
                         "description": "Skip provisioning the UEBA setting when it already exists to avoid concurrency conflicts."
                       }
@@ -5512,7 +5512,7 @@
                       ]
                     },
                     {
-                      "condition": "[and(parameters('enableUeba'), parameters('deployUebaSetting'))]",
+                      "condition": "[and(parameters('enableUeba'), parameters('deployUebaSetting'), variables('shouldDeployEntitySettingDirect'))]",
                       "type": "Microsoft.SecurityInsights/settings",
                       "apiVersion": "2024-01-01-preview",
                       "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('workspaceName'))]",
@@ -5522,7 +5522,8 @@
                         "dataSources": "[parameters('uebaDataSources')]"
                       },
                       "dependsOn": [
-                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')]"
+                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')]",
+                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')]"
                       ]
                     },
                     {
