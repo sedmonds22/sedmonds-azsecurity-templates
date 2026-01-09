@@ -31627,14 +31627,14 @@
                 },
                 "mode": "Incremental",
                 "parameters": {
-                  "diagnosticStorageAccountName": {
-                    "value": "[split(parameters('storageAccountResourceIds')[1], '/')[8]]"
+                  "diagnosticStorageAccountResourceId": {
+                    "value": "[parameters('storageAccountResourceIds')[1]]"
                   },
                   "logAnalyticsWorkspaceDiagnosticSettingName": {
                     "value": "[variables('operations').namingConvention.logAnalyticsWorkspaceDiagnosticSetting]"
                   },
-                  "logAnalyticsWorkspaceName": {
-                    "value": "[split(parameters('logAnalyticsWorkspaceResourceId'), '/')[8]]"
+                  "logAnalyticsWorkspaceResourceId": {
+                    "value": "[parameters('logAnalyticsWorkspaceResourceId')]"
                   },
                   "supportedClouds": {
                     "value": "[parameters('supportedClouds')]"
@@ -31651,13 +31651,13 @@
                     }
                   },
                   "parameters": {
-                    "diagnosticStorageAccountName": {
+                    "diagnosticStorageAccountResourceId": {
                       "type": "string"
                     },
                     "logAnalyticsWorkspaceDiagnosticSettingName": {
                       "type": "string"
                     },
-                    "logAnalyticsWorkspaceName": {
+                    "logAnalyticsWorkspaceResourceId": {
                       "type": "string"
                     },
                     "supportedClouds": {
@@ -31669,11 +31669,11 @@
                       "condition": "[contains(parameters('supportedClouds'), environment().name)]",
                       "type": "microsoft.insights/diagnosticSettings",
                       "apiVersion": "2017-05-01-preview",
-                      "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('logAnalyticsWorkspaceName'))]",
+                      "scope": "[parameters('logAnalyticsWorkspaceResourceId')]",
                       "name": "[parameters('logAnalyticsWorkspaceDiagnosticSettingName')]",
                       "properties": {
-                        "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]",
-                        "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', parameters('diagnosticStorageAccountName'))]",
+                        "workspaceId": "[parameters('logAnalyticsWorkspaceResourceId')]",
+                        "storageAccountId": "[parameters('diagnosticStorageAccountResourceId')]",
                         "logs": [
                           {
                             "category": "Audit",
