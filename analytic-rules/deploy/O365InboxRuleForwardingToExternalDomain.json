@@ -1,0 +1,67 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace that has Microsoft Sentinel enabled."
+      }
+    },
+    "enableRule": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether the analytic rule should be enabled after deployment."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "apiVersion": "2025-06-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', '6e360b52-0164-45d8-a147-7c3ff4226b53')]",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "O365 inbox rule forwards or redirects to external address",
+        "description": "Detects creation or modification of Exchange Online inbox rules that forward or redirect emails to external recipients. Attackers commonly use inbox rules to exfiltrate mail silently.",
+        "enabled": "[parameters('enableRule')]",
+        "severity": "High",
+        "query": "let queryFrequency = 15m;\r\n// Optional: add your tenant domains to reduce noise (e.g., dynamic([\"contoso.com\",\"contoso.onmicrosoft.com\"]))\r\nlet allowedDomains = dynamic([]);\r\nOfficeActivity\r\n| where TimeGenerated > ago(queryFrequency)\r\n| where Operation in~ (\"New-InboxRule\", \"Set-InboxRule\")\r\n| extend Params = todynamic(Parameters)\r\n| mv-expand Params\r\n| extend ParamName = tostring(Params.Name), ParamValue = tostring(Params.Value)\r\n| summarize ParamBag = make_bag(pack(ParamName, ParamValue)) by TimeGenerated, Operation, UserId, ClientIP, UserAgent, OrganizationId, RecordType, OfficeWorkload\r\n| extend ForwardTo = tostring(ParamBag.ForwardTo), RedirectTo = tostring(ParamBag.RedirectTo), ForwardingSmtpAddress = tostring(ParamBag.ForwardingSmtpAddress)\r\n| extend TargetsRaw = strcat(ForwardTo, ';', RedirectTo, ';', ForwardingSmtpAddress)\r\n| extend TargetEmails = extract_all(@\"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\", TargetsRaw)\r\n| where array_length(TargetEmails) > 0\r\n| mv-expand TargetEmail = TargetEmails\r\n| extend TargetDomain = tostring(split(tostring(TargetEmail), '@', 1)[0])\r\n| where array_length(allowedDomains) == 0 or TargetDomain !in (allowedDomains)\r\n| project TimeGenerated, Operation, UserId, ClientIP, UserAgent, TargetEmail, TargetDomain, ForwardTo, RedirectTo, ForwardingSmtpAddress",
+        "queryFrequency": "PT15M",
+        "queryPeriod": "PT1H",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "tactics": [
+          "Collection",
+          "Exfiltration"
+        ],
+        "techniques": [
+          "T1114"
+        ],
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "UserId",
+                "identifier": "FullName"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "ClientIP",
+                "identifier": "Address"
+              }
+            ]
+          }
+        ],
+        "suppressionEnabled": false,
+        "suppressionDuration": "PT5H"
+      }
+    }
+  ]
+}

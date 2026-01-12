@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace that has Microsoft Sentinel enabled."
+      }
+    },
+    "enableRule": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether the analytic rule should be enabled after deployment."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "apiVersion": "2025-06-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', '6ac7be74-0f8b-4bba-b7c2-2ef7db9dfe2c')]",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Diagnostic settings deleted or all logs disabled",
+        "description": "Detects deletion of diagnostic settings and updates that disable all diagnostic log categories. Reducing diagnostic telemetry can hide suspicious activity and hinder incident response.",
+        "enabled": "[parameters('enableRule')]",
+        "severity": "High",
+        "query": "let queryFrequency = 15m;\nlet base = AzureActivity\n| where ingestion_time() > ago(queryFrequency)\n| where ActivityStatusValue in~ (\"Succeeded\",\"Success\",\"Accepted\")\n| where tolower(OperationNameValue) has \"microsoft.insights/diagnosticsettings/\" and (tolower(OperationNameValue) endswith \"/delete\" or tolower(OperationNameValue) endswith \"/write\")\n| extend IsDelete = tolower(OperationNameValue) endswith \"/delete\";\nlet deletes = base\n| where IsDelete\n| extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])\n| project\n    TimeGenerated,\n    Caller,\n    Name,\n    UPNSuffix,\n    CallerIpAddress,\n    OperationNameValue,\n    ResourceGroup,\n    _ResourceId,\n    Resource,\n    CorrelationId,\n    SubscriptionId,\n    IsDelete,\n    WorkspaceId = \"\",\n    EnabledLogs = int(null),\n    TotalLogs = int(null);\nlet writes = base\n| where not(IsDelete)\n| extend requestBody = tostring(parse_json(Properties).requestbody)\n| extend request = parse_json(requestBody)\n| extend dsProps = coalesce(request.properties, request.Properties)\n| extend WorkspaceId = tostring(dsProps.workspaceId)\n| extend logs = dsProps.logs\n| mv-expand log = logs to typeof(dynamic)\n| summarize\n    EnabledLogs = countif(tobool(log.enabled) == true),\n    TotalLogs = count()\n  by\n    TimeGenerated,\n    Caller,\n    CallerIpAddress,\n    OperationNameValue,\n    ResourceGroup,\n    _ResourceId,\n    Resource,\n    CorrelationId,\n    SubscriptionId,\n    WorkspaceId\n| where TotalLogs > 0 and EnabledLogs == 0\n| extend IsDelete = false\n| extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0]);\nunion deletes, writes\n| project-away log",
+        "queryFrequency": "PT15M",
+        "queryPeriod": "PT15M",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "tactics": [
+          "DefenseEvasion"
+        ],
+        "techniques": [
+          "T1562"
+        ],
+        "entityMappings": [
+          {
+            "entityType": "AzureResource",
+            "fieldMappings": [
+              {
+                "columnName": "_ResourceId",
+                "identifier": "ResourceId"
+              }
+            ]
+          },
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "Caller",
+                "identifier": "FullName"
+              },
+              {
+                "columnName": "Name",
+                "identifier": "Name"
+              },
+              {
+                "columnName": "UPNSuffix",
+                "identifier": "UPNSuffix"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "CallerIpAddress",
+                "identifier": "Address"
+              }
+            ]
+          }
+        ],
+        "suppressionEnabled": false,
+        "suppressionDuration": "PT5H"
+      }
+    }
+  ]
+}
+

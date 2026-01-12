@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace that has Microsoft Sentinel enabled."
+      }
+    },
+    "enableRule": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether the analytic rule should be enabled after deployment."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "apiVersion": "2025-06-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', '4c6a94e8-8f95-4ae3-9a44-0c96e7a1d3bf')]",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Azure Policy assignment deleted or set to DoNotEnforce",
+        "description": "Detects deletion of Azure Policy assignments and updates that set enforcementMode to DoNotEnforce. Disabling or removing policy enforcement can open governance gaps and enable risky configurations.",
+        "enabled": "[parameters('enableRule')]",
+        "severity": "High",
+        "query": "let queryFrequency = 15m;\nAzureActivity\n| where ingestion_time() > ago(queryFrequency)\n| where ActivityStatusValue in~ (\"Succeeded\",\"Success\",\"Accepted\")\n| where tolower(OperationNameValue) has \"microsoft.authorization/policyassignments/\" and (tolower(OperationNameValue) endswith \"/delete\" or tolower(OperationNameValue) endswith \"/write\")\n| extend IsDelete = tolower(OperationNameValue) endswith \"/delete\"\n| extend requestBody = tostring(parse_json(Properties).requestbody)\n| extend request = parse_json(requestBody)\n| extend paProps = coalesce(request.properties, request.Properties)\n| extend enforcementMode = tostring(coalesce(paProps.enforcementMode, paProps.EnforcementMode))\n| extend IsDoNotEnforce = tolower(enforcementMode) == \"donotenforce\"\n| where IsDelete or IsDoNotEnforce\n| extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])\n| project\n    TimeGenerated,\n    Caller,\n    Name,\n    UPNSuffix,\n    CallerIpAddress,\n    OperationNameValue,\n    ResourceGroup,\n    _ResourceId,\n    Resource,\n    CorrelationId,\n    SubscriptionId,\n    IsDelete,\n    enforcementMode",
+        "queryFrequency": "PT15M",
+        "queryPeriod": "PT15M",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "tactics": [
+          "DefenseEvasion"
+        ],
+        "techniques": [
+          "T1562"
+        ],
+        "entityMappings": [
+          {
+            "entityType": "AzureResource",
+            "fieldMappings": [
+              {
+                "columnName": "_ResourceId",
+                "identifier": "ResourceId"
+              }
+            ]
+          },
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "Caller",
+                "identifier": "FullName"
+              },
+              {
+                "columnName": "Name",
+                "identifier": "Name"
+              },
+              {
+                "columnName": "UPNSuffix",
+                "identifier": "UPNSuffix"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "CallerIpAddress",
+                "identifier": "Address"
+              }
+            ]
+          }
+        ],
+        "suppressionEnabled": false,
+        "suppressionDuration": "PT5H"
+      }
+    }
+  ]
+}
+

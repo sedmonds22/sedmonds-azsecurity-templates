@@ -1,0 +1,84 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace that has Microsoft Sentinel enabled."
+      }
+    },
+    "enableRule": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether the analytic rule should be enabled after deployment."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "apiVersion": "2025-06-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', '05b6e0f7-d408-4e0e-9658-831ce52b3fb1')]",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Azure Automation runbook or webhook created or updated",
+        "description": "Detects creation or update operations on Azure Automation runbooks and webhooks. These can be abused for persistence and remote execution in Azure environments.",
+        "enabled": "[parameters('enableRule')]",
+        "severity": "Medium",
+        "query": "let queryFrequency = 15m;\r\nAzureActivity\r\n| where ingestion_time() > ago(queryFrequency)\r\n| where ActivityStatusValue =~ \"Success\"\r\n| where tolower(OperationNameValue) has \"microsoft.automation/automationaccounts\"\r\n| where tolower(OperationNameValue) endswith \"/write\"\r\n| where tolower(OperationNameValue) has_any (\"/runbooks/\", \"/webhooks/\", \"/schedules/\", \"/jobschedules/\")\r\n| extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])\r\n| project TimeGenerated, Caller, Name, UPNSuffix, CallerIpAddress, OperationNameValue, ResourceGroup, _ResourceId, Resource, CorrelationId",
+        "queryFrequency": "PT15M",
+        "queryPeriod": "PT15M",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "tactics": [
+          "Persistence",
+          "Execution"
+        ],
+        "techniques": [
+          "T1059"
+        ],
+        "entityMappings": [
+          {
+            "entityType": "AzureResource",
+            "fieldMappings": [
+              {
+                "columnName": "_ResourceId",
+                "identifier": "ResourceId"
+              }
+            ]
+          },
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "Caller",
+                "identifier": "FullName"
+              },
+              {
+                "columnName": "Name",
+                "identifier": "Name"
+              },
+              {
+                "columnName": "UPNSuffix",
+                "identifier": "UPNSuffix"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "CallerIpAddress",
+                "identifier": "Address"
+              }
+            ]
+          }
+        ],
+        "suppressionEnabled": false,
+        "suppressionDuration": "PT5H"
+      }
+    }
+  ]
+}

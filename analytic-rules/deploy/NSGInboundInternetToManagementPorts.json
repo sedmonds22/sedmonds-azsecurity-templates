@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace that has Microsoft Sentinel enabled."
+      }
+    },
+    "enableRule": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether the analytic rule should be enabled after deployment."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "apiVersion": "2025-06-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', '6b6e8b03-33c3-4c2a-b3a9-6f8e8b5c7c61')]",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "NSG inbound allow from Internet to management ports",
+        "description": "Detects creation or update of a Network Security Group (NSG) security rule that allows inbound access from the Internet (or any source) to common management ports. This is frequently a misconfiguration that enables initial access via exposed services.",
+        "enabled": "[parameters('enableRule')]",
+        "severity": "High",
+        "query": "let queryFrequency = 15m;\nlet mgmtPorts = dynamic([\"22\",\"3389\",\"5985\",\"5986\",\"1433\",\"3306\",\"5432\"]);\nAzureActivity\n| where ingestion_time() > ago(queryFrequency)\n| where ActivityStatusValue =~ \"Success\"\n| where tolower(OperationNameValue) has \"microsoft.network/networksecuritygroups\" and tolower(OperationNameValue) endswith \"/securityrules/write\"\n| extend requestBody = tostring(parse_json(Properties).requestbody)\n| extend request = parse_json(requestBody)\n| extend ruleProps = coalesce(request.properties, request.Properties)\n| extend Access = tostring(ruleProps.access), Direction = tostring(ruleProps.direction), Protocol = tostring(ruleProps.protocol)\n| extend SourcePrefix = tostring(ruleProps.sourceAddressPrefix), SourcePrefixes = tostring(ruleProps.sourceAddressPrefixes)\n| extend DestinationPrefix = tostring(ruleProps.destinationAddressPrefix), DestinationPrefixes = tostring(ruleProps.destinationAddressPrefixes)\n| extend DestinationPort = tostring(ruleProps.destinationPortRange), DestinationPorts = tostring(ruleProps.destinationPortRanges)\n| extend DestPortsCombined = iff(isnotempty(DestinationPorts), DestinationPorts, DestinationPort)\n| extend SrcAny = (SourcePrefix in~ (\"*\", \"Internet\", \"0.0.0.0/0\", \"::/0\"))\n    or (SourcePrefixes has \"0.0.0.0/0\") or (SourcePrefixes has \"\\\"Internet\\\"\") or (SourcePrefixes has \"*\")\n| extend IsWidePort = DestPortsCombined == \"*\" or DestPortsCombined has \"1-65535\" or DestPortsCombined has \"0-65535\"\n| extend IsMgmtPort = DestPortsCombined has_any (mgmtPorts)\n| where Direction =~ \"Inbound\" and Access =~ \"Allow\" and SrcAny and (IsWidePort or IsMgmtPort)\n| extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])\n| project\n    TimeGenerated,\n    Caller,\n    Name,\n    UPNSuffix,\n    CallerIpAddress,\n    OperationNameValue,\n    ResourceGroup,\n    _ResourceId,\n    Resource,\n    CorrelationId,\n    Access,\n    Direction,\n    Protocol,\n    SourcePrefix,\n    DestinationPrefix,\n    DestPortsCombined",
+        "queryFrequency": "PT15M",
+        "queryPeriod": "PT15M",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "tactics": [
+          "InitialAccess"
+        ],
+        "techniques": [
+          "T1133"
+        ],
+        "entityMappings": [
+          {
+            "entityType": "AzureResource",
+            "fieldMappings": [
+              {
+                "columnName": "_ResourceId",
+                "identifier": "ResourceId"
+              }
+            ]
+          },
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "Caller",
+                "identifier": "FullName"
+              },
+              {
+                "columnName": "Name",
+                "identifier": "Name"
+              },
+              {
+                "columnName": "UPNSuffix",
+                "identifier": "UPNSuffix"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "CallerIpAddress",
+                "identifier": "Address"
+              }
+            ]
+          }
+        ],
+        "suppressionEnabled": false,
+        "suppressionDuration": "PT5H"
+      }
+    }
+  ]
+}
+

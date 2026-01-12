@@ -1,0 +1,85 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace that has Microsoft Sentinel enabled."
+      }
+    },
+    "enableRule": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Whether the analytic rule should be enabled after deployment."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "apiVersion": "2025-06-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', '5c4f7a1a-7b0e-4d4e-9b41-6f5a6c21e1a7')]",
+      "kind": "Scheduled",
+      "properties": {
+        "displayName": "Default route (0.0.0.0/0) to Internet or virtual appliance added",
+        "description": "Detects creation or update of a route table route that sends default traffic (0.0.0.0/0 or ::/0) to the Internet or a virtual appliance. This can enable unexpected outbound paths, traffic interception, or data exfiltration via an attacker-controlled next hop.",
+        "enabled": "[parameters('enableRule')]",
+        "severity": "High",
+        "query": "let queryFrequency = 15m;\nAzureActivity\n| where ingestion_time() > ago(queryFrequency)\n| where ActivityStatusValue =~ \"Success\"\n| where tolower(OperationNameValue) has \"microsoft.network/routetables\" and tolower(OperationNameValue) endswith \"/routes/write\"\n| extend requestBody = tostring(parse_json(Properties).requestbody)\n| extend request = parse_json(requestBody)\n| extend routeProps = coalesce(request.properties, request.Properties)\n| extend AddressPrefix = tostring(routeProps.addressPrefix)\n| extend NextHopType = tostring(routeProps.nextHopType)\n| extend NextHopIpAddress = tostring(routeProps.nextHopIpAddress)\n| where AddressPrefix in~ (\"0.0.0.0/0\", \"::/0\")\n| where NextHopType in~ (\"Internet\", \"VirtualAppliance\")\n| extend Name = tostring(split(Caller,'@',0)[0]), UPNSuffix = tostring(split(Caller,'@',1)[0])\n| project\n    TimeGenerated,\n    Caller,\n    Name,\n    UPNSuffix,\n    CallerIpAddress,\n    OperationNameValue,\n    ResourceGroup,\n    _ResourceId,\n    Resource,\n    CorrelationId,\n    AddressPrefix,\n    NextHopType,\n    NextHopIpAddress",
+        "queryFrequency": "PT15M",
+        "queryPeriod": "PT15M",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "tactics": [
+          "Exfiltration",
+          "Impact"
+        ],
+        "techniques": [
+          "T1567"
+        ],
+        "entityMappings": [
+          {
+            "entityType": "AzureResource",
+            "fieldMappings": [
+              {
+                "columnName": "_ResourceId",
+                "identifier": "ResourceId"
+              }
+            ]
+          },
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "columnName": "Caller",
+                "identifier": "FullName"
+              },
+              {
+                "columnName": "Name",
+                "identifier": "Name"
+              },
+              {
+                "columnName": "UPNSuffix",
+                "identifier": "UPNSuffix"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "columnName": "CallerIpAddress",
+                "identifier": "Address"
+              }
+            ]
+          }
+        ],
+        "suppressionEnabled": false,
+        "suppressionDuration": "PT5H"
+      }
+    }
+  ]
+}
+
