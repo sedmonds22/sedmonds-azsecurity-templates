@@ -31619,8 +31619,8 @@
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-law-diag-{0}', parameters('deploymentNameSuffix'))]",
-              "subscriptionId": "[variables('operations').subscriptionId]",
-              "resourceGroup": "[variables('operations').resourceGroupName]",
+              "subscriptionId": "[split(parameters('logAnalyticsWorkspaceResourceId'), '/')[2]]",
+              "resourceGroup": "[split(parameters('logAnalyticsWorkspaceResourceId'), '/')[4]]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -31633,8 +31633,8 @@
                   "logAnalyticsWorkspaceDiagnosticSettingName": {
                     "value": "[variables('operations').namingConvention.logAnalyticsWorkspaceDiagnosticSetting]"
                   },
-                  "logAnalyticsWorkspaceResourceId": {
-                    "value": "[parameters('logAnalyticsWorkspaceResourceId')]"
+                  "logAnalyticsWorkspaceName": {
+                    "value": "[split(parameters('logAnalyticsWorkspaceResourceId'), '/')[8]]"
                   },
                   "supportedClouds": {
                     "value": "[parameters('supportedClouds')]"
@@ -31657,7 +31657,7 @@
                     "logAnalyticsWorkspaceDiagnosticSettingName": {
                       "type": "string"
                     },
-                    "logAnalyticsWorkspaceResourceId": {
+                    "logAnalyticsWorkspaceName": {
                       "type": "string"
                     },
                     "supportedClouds": {
@@ -31669,10 +31669,10 @@
                       "condition": "[contains(parameters('supportedClouds'), environment().name)]",
                       "type": "microsoft.insights/diagnosticSettings",
                       "apiVersion": "2017-05-01-preview",
-                      "scope": "[parameters('logAnalyticsWorkspaceResourceId')]",
+                      "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('logAnalyticsWorkspaceName'))]",
                       "name": "[parameters('logAnalyticsWorkspaceDiagnosticSettingName')]",
                       "properties": {
-                        "workspaceId": "[parameters('logAnalyticsWorkspaceResourceId')]",
+                        "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]",
                         "storageAccountId": "[parameters('diagnosticStorageAccountResourceId')]",
                         "logs": [
                           {
