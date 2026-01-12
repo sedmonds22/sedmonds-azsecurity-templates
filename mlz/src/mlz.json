@@ -208,6 +208,13 @@
         "description": "When set to \"true\", enables Microsoft Sentinel within the Log Analytics Workspace created in this deployment. Default value = \"false\"."
       }
     },
+    "delimiter": {
+      "type": "string",
+      "defaultValue": "-",
+      "metadata": {
+        "description": "Delimiter used in naming conventions. Default value = \"-\"."
+      }
+    },
     "enableEntityBehavior": {
       "type": "bool",
       "defaultValue": false,
