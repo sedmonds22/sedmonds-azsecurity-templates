@@ -418,6 +418,13 @@
         "description": "[dev/prod/test] The abbreviation for the target environment."
       }
     },
+    "locationAbbreviation": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "A short region abbreviation used in naming (e.g., 'eus', 'eus2', 'wus2'). If left blank, names may be longer/less standardized."
+      }
+    },
     "firewallClientPublicIPAddressAvailabilityZones": {
       "type": "array",
       "defaultValue": [],
