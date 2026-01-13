@@ -42,7 +42,7 @@ var workspaceContributorRoleDefinitionGuid = 'b24988ac-6180-42a0-ab88-20f7382dd2
 var shouldRunAutomationScript = deploySentinelAutomationScript
 var shouldConfigureEntitySetting = enableEntityBehavior && deployEntityBehaviorSetting
 var shouldDeployEntitySettingDirect = false
-var shouldConfigureUebaSetting = enableUeba && deployUebaSetting
+var shouldConfigureUebaSetting = enableUeba && deployUebaSetting && shouldConfigureEntitySetting
 var shouldConfigureAnomaliesSetting = enableAnomalies
 var entityBehaviorSettingResourceId = extensionResourceId(workspace.id, 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')
 var entityBehaviorSettingPayload = string({
@@ -184,7 +184,7 @@ resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020
       }
     ]
     scriptContent: '''
-      set -euo pipefail
+      set -uo pipefail
 
       resourceId="$ENTITY_SETTING_ID"
       apiVersion="2024-01-01-preview"
@@ -193,9 +193,19 @@ resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020
       etag=$(az rest --method get --url "$resourceId?api-version=$apiVersion" --query etag -o tsv --only-show-errors 2>/dev/null || echo "")
 
       if [ -n "$etag" ]; then
-        az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
       else
-        az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
+      fi
+
+      if [ -n "${rc:-}" ] && [ "${rc:-0}" -ne 0 ]; then
+        if echo "$response" | grep -q "Only 'Security Administrator' and 'Global Administrator'"; then
+          echo "$response" >&2
+          exit 0
+        fi
+
+        echo "$response" >&2
+        exit ${rc:-1}
       fi
     '''
   }
@@ -232,7 +242,7 @@ resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = 
       }
     ]
     scriptContent: '''
-      set -euo pipefail
+      set -uo pipefail
 
       resourceId="$UEBA_SETTING_ID"
       apiVersion="2024-01-01-preview"
@@ -241,9 +251,24 @@ resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = 
       etag=$(az rest --method get --url "$resourceId?api-version=$apiVersion" --query etag -o tsv --only-show-errors 2>/dev/null || echo "")
 
       if [ -n "$etag" ]; then
-        az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
       else
-        az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
+      fi
+
+      if [ -n "${rc:-}" ] && [ "${rc:-0}" -ne 0 ]; then
+        if echo "$response" | grep -q "requires 'EntityAnalytics' to be enabled"; then
+          echo "$response" >&2
+          exit 0
+        fi
+
+        if echo "$response" | grep -q "Only 'Security Administrator' and 'Global Administrator'"; then
+          echo "$response" >&2
+          exit 0
+        fi
+
+        echo "$response" >&2
+        exit ${rc:-1}
       fi
     '''
   }
@@ -279,7 +304,7 @@ resource anomaliesSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-0
       }
     ]
     scriptContent: '''
-      set -euo pipefail
+      set -uo pipefail
 
       resourceId="$ANOMALIES_SETTING_ID"
       apiVersion="2024-01-01-preview"
@@ -288,9 +313,19 @@ resource anomaliesSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-0
       etag=$(az rest --method get --url "$resourceId?api-version=$apiVersion" --query etag -o tsv --only-show-errors 2>/dev/null || echo "")
 
       if [ -n "$etag" ]; then
-        az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
       else
-        az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
+      fi
+
+      if [ -n "${rc:-}" ] && [ "${rc:-0}" -ne 0 ]; then
+        if echo "$response" | grep -q "Only 'Security Administrator' and 'Global Administrator'"; then
+          echo "$response" >&2
+          exit 0
+        fi
+
+        echo "$response" >&2
+        exit ${rc:-1}
       fi
     '''
   }
