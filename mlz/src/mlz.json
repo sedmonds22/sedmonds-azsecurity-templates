@@ -5565,10 +5565,16 @@
                     "sentinelAutomationContributorRoleDefinitionGuid": "f4c81013-99ee-4d62-a7ee-b3f1f648599a",
                     "workspaceContributorRoleDefinitionGuid": "b24988ac-6180-42a0-ab88-20f7382dd24c",
                     "shouldRunAutomationScript": "[parameters('deploySentinelAutomationScript')]",
-                    "shouldConfigureEntitySetting": "[and(and(parameters('enableEntityBehavior'), parameters('deployEntityBehaviorSetting')), parameters('useEntityBehaviorScript'))]",
-                    "shouldDeployEntitySettingDirect": "[and(and(parameters('enableEntityBehavior'), parameters('deployEntityBehaviorSetting')), not(parameters('useEntityBehaviorScript')))]",
+                    "shouldConfigureEntitySetting": "[and(parameters('enableEntityBehavior'), parameters('deployEntityBehaviorSetting'))]",
+                    "shouldDeployEntitySettingDirect": false,
                     "entityBehaviorSettingResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')]",
-                    "entityBehaviorSettingPayload": "[string(createObject('kind', 'EntityAnalytics', 'properties', createObject('entityProviders', createArray('AzureActiveDirectory'))))]"
+                    "entityBehaviorSettingPayload": "[string(createObject('kind', 'EntityAnalytics', 'properties', createObject('entityProviders', createArray('AzureActiveDirectory'))))]",
+                    "shouldConfigureUebaSetting": "[and(parameters('enableUeba'), parameters('deployUebaSetting'))]",
+                    "shouldConfigureAnomaliesSetting": "[parameters('enableAnomalies')]",
+                    "uebaSettingResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'Ueba')]",
+                    "uebaSettingPayload": "[string(createObject('kind', 'Ueba', 'properties', createObject('dataSources', parameters('uebaDataSources'))))]",
+                    "anomaliesSettingResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'Anomalies')]",
+                    "anomaliesSettingPayload": "[string(createObject('kind', 'Anomalies', 'properties', createObject()))]"
                   },
                   "resources": [
                     {
@@ -5592,7 +5598,7 @@
                       ]
                     },
                     {
-                      "condition": "[variables('shouldConfigureEntitySetting')]",
+                      "condition": "[or(or(variables('shouldConfigureEntitySetting'), variables('shouldConfigureUebaSetting')), variables('shouldConfigureAnomaliesSetting'))]",
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2020-04-01-preview",
                       "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('workspaceName'))]",
@@ -5692,45 +5698,74 @@
                       ]
                     },
                     {
-                      "condition": "[variables('shouldDeployEntitySettingDirect')]",
-                      "type": "Microsoft.SecurityInsights/settings",
-                      "apiVersion": "2024-01-01-preview",
-                      "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('workspaceName'))]",
-                      "name": "EntityAnalytics",
-                      "kind": "EntityAnalytics",
+                      "condition": "[variables('shouldConfigureUebaSetting')]",
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[format('configure-ueba-{0}', uniqueString(resourceGroup().id))]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzureCLI",
+                      "identity": {
+                        "type": "UserAssigned",
+                        "userAssignedIdentities": {
+                          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id))))]": {}
+                        }
+                      },
                       "properties": {
-                        "entityProviders": [
-                          "AzureActiveDirectory"
-                        ]
+                        "azCliVersion": "2.61.0",
+                        "cleanupPreference": "OnSuccess",
+                        "retentionInterval": "P1D",
+                        "timeout": "PT10M",
+                        "environmentVariables": [
+                          {
+                            "name": "UEBA_SETTING_ID",
+                            "value": "[variables('uebaSettingResourceId')]"
+                          },
+                          {
+                            "name": "UEBA_SETTING_PAYLOAD",
+                            "value": "[variables('uebaSettingPayload')]"
+                          }
+                        ],
+                        "scriptContent": "      set -euo pipefail\r\n\r\n      resourceId=\"$UEBA_SETTING_ID\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n      payload=\"$UEBA_SETTING_PAYLOAD\"\r\n\r\n      etag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$etag\" ]; then\r\n        az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors\r\n      else\r\n        az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors\r\n      fi\r\n    "
                       },
                       "dependsOn": [
+                        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]",
+                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), format('sentinel-script-{0}', uniqueString(resourceGroup().id)), 'automation-script-sentinel-rbac'))]",
                         "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')]"
                       ]
                     },
                     {
-                      "condition": "[and(parameters('enableUeba'), parameters('deployUebaSetting'), variables('shouldDeployEntitySettingDirect'))]",
-                      "type": "Microsoft.SecurityInsights/settings",
-                      "apiVersion": "2024-01-01-preview",
-                      "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('workspaceName'))]",
-                      "name": "Ueba",
-                      "kind": "Ueba",
+                      "condition": "[variables('shouldConfigureAnomaliesSetting')]",
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[format('configure-anomalies-{0}', uniqueString(resourceGroup().id))]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzureCLI",
+                      "identity": {
+                        "type": "UserAssigned",
+                        "userAssignedIdentities": {
+                          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id))))]": {}
+                        }
+                      },
                       "properties": {
-                        "dataSources": "[parameters('uebaDataSources')]"
+                        "azCliVersion": "2.61.0",
+                        "cleanupPreference": "OnSuccess",
+                        "retentionInterval": "P1D",
+                        "timeout": "PT10M",
+                        "environmentVariables": [
+                          {
+                            "name": "ANOMALIES_SETTING_ID",
+                            "value": "[variables('anomaliesSettingResourceId')]"
+                          },
+                          {
+                            "name": "ANOMALIES_SETTING_PAYLOAD",
+                            "value": "[variables('anomaliesSettingPayload')]"
+                          }
+                        ],
+                        "scriptContent": "      set -euo pipefail\r\n\r\n      resourceId=\"$ANOMALIES_SETTING_ID\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n      payload=\"$ANOMALIES_SETTING_PAYLOAD\"\r\n\r\n      etag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$etag\" ]; then\r\n        az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors\r\n      else\r\n        az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors\r\n      fi\r\n    "
                       },
                       "dependsOn": [
-                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')]",
-                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')]"
-                      ]
-                    },
-                    {
-                      "condition": "[parameters('enableAnomalies')]",
-                      "type": "Microsoft.SecurityInsights/settings",
-                      "apiVersion": "2024-01-01-preview",
-                      "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('workspaceName'))]",
-                      "name": "Anomalies",
-                      "kind": "Anomalies",
-                      "properties": {},
-                      "dependsOn": [
+                        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]",
+                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), format('sentinel-script-{0}', uniqueString(resourceGroup().id)), 'automation-script-sentinel-rbac'))]",
                         "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')]"
                       ]
                     }

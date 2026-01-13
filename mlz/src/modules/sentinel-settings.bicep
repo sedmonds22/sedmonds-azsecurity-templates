@@ -40,8 +40,8 @@ param deploySentinelAutomationScript bool = true
 var sentinelAutomationContributorRoleDefinitionGuid = 'f4c81013-99ee-4d62-a7ee-b3f1f648599a'
 var workspaceContributorRoleDefinitionGuid = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
 var shouldRunAutomationScript = deploySentinelAutomationScript
-var shouldConfigureEntitySetting = enableEntityBehavior && deployEntityBehaviorSetting && useEntityBehaviorScript
-var shouldDeployEntitySettingDirect = enableEntityBehavior && deployEntityBehaviorSetting && !useEntityBehaviorScript
+var shouldConfigureEntitySetting = enableEntityBehavior && deployEntityBehaviorSetting
+var shouldDeployEntitySettingDirect = false
 var shouldConfigureUebaSetting = enableUeba && deployUebaSetting
 var shouldConfigureAnomaliesSetting = enableAnomalies
 var entityBehaviorSettingResourceId = extensionResourceId(workspace.id, 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')
@@ -203,20 +203,6 @@ resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020
     sentinel
     automationScriptIdentityRoleAssignment
     automationScriptSentinelRoleAssignment
-  ]
-}
-
-resource entityBehaviorSettingDirect 'Microsoft.SecurityInsights/settings@2024-01-01-preview' = if (shouldDeployEntitySettingDirect) {
-  name: 'EntityAnalytics'
-  scope: workspace
-  kind: 'EntityAnalytics'
-  properties: {
-    entityProviders: [
-      'AzureActiveDirectory'
-    ]
-  }
-  dependsOn: [
-    sentinel
   ]
 }
 
