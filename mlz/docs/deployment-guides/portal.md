@@ -24,8 +24,8 @@ Click the appropriate button below to open the deployment UI.
 
 | Cloud  | Deployment Button |
 | :----- | :----- |
-| Azure Commercial | [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.json%3Fv%3D468e737/uiFormDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.uiDefinition.json%3Fv%3D468e737) |
-| Azure Government |  [![Deploy to Azure Gov](https://aka.ms/deploytoazuregovbutton)](https://portal.azure.us/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.json%3Fv%3D468e737/uiFormDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.uiDefinition.json%3Fv%3D468e737) |
+| Azure Commercial | [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.json%3Fv%3D0495b68/uiFormDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.uiDefinition.json%3Fv%3D0495b68) |
+| Azure Government |  [![Deploy to Azure Gov](https://aka.ms/deploytoazuregovbutton)](https://portal.azure.us/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.json%3Fv%3D0495b68/uiFormDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.uiDefinition.json%3Fv%3D0495b68) |
 
 ### STEP 1: Basics
 
