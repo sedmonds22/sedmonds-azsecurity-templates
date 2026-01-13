@@ -215,6 +215,13 @@
         "description": "Delimiter used in naming conventions. Default value = \"-\"."
       }
     },
+    "resourceAbbreviations": {
+      "type": "object",
+      "defaultValue": "[variables('resourceAbbreviations')]",
+      "metadata": {
+        "description": "Map of resource type abbreviations used by naming conventions. Default value uses the template's built-in abbreviation map."
+      }
+    },
     "enableEntityBehavior": {
       "type": "bool",
       "defaultValue": false,
@@ -1177,6 +1184,56 @@
     ],
     "deploymentTenantId": "[tenant().tenantId]",
     "firewallClientPrivateIpAddress": "[variables('firewallClientUsableIpAddresses')[3]]",
+    "resourceAbbreviations": {
+      "actionGroups": "ag",
+      "applicationGroups": "vdag",
+      "applicationInsights": "appi",
+      "appServicePlans": "asp",
+      "automationAccounts": "aa",
+      "availabilitySets": "avail",
+      "azureFirewalls": "afw",
+      "bastionHosts": "bas",
+      "computeGallieries": "cg",
+      "dataCollectionEndpoints": "dce",
+      "dataCollectionRuleAssociations": "dcra",
+      "dataCollectionRules": "dcr",
+      "diagnosticSettings": "diag",
+      "diskAccesses": "da",
+      "diskEncryptionSets": "des",
+      "disks": "disk",
+      "firewallPolicies": "afwp",
+      "applicationGateways": "agw",
+      "applicationGatewayWafPolicies": "agwwafp",
+      "functionApps": "func",
+      "hostPools": "vdpool",
+      "ipConfigurations": "ipconf",
+      "keyVaults": "kv",
+      "localNetworkGateways": "lgw",
+      "logAnalyticsWorkspaces": "log",
+      "natGateways": "ng",
+      "netAppAccounts": "naa",
+      "netAppAccountsCapacityPools": "cp",
+      "networkInterfaces": "nic",
+      "networkSecurityGroups": "nsg",
+      "networkWatchers": "nw",
+      "networkWatchersFlowLogs": "fl",
+      "privateEndpoints": "pe",
+      "privateLinkScopes": "pls",
+      "publicIPAddresses": "pip",
+      "publicIPPrefixes": "ippre",
+      "recoveryServicesVaults": "rsv",
+      "remoteApplicationGroups": "vdag",
+      "resourceGroups": "rg",
+      "routeTables": "rt",
+      "scalingPlans": "vdscaling",
+      "storageAccounts": "st",
+      "subnets": "snet",
+      "userAssignedIdentities": "id",
+      "virtualMachines": "vm",
+      "virtualNetworkGateways": "vgw",
+      "virtualNetworks": "vnet",
+      "workspaces": "vdws"
+    },
     "resourceToken": "resource_token",
     "securityNamingConvention": "[format('{0}{1}{2}{1}{3}{1}security{1}{4}', toLower(parameters('identifier')), parameters('delimiter'), parameters('environmentAbbreviation'), parameters('locationAbbreviation'), variables('resourceToken'))]",
     "securityResourceGroupName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').resourceGroups)]",
@@ -1221,6 +1278,9 @@
           },
           "environmentAbbreviation": {
             "value": "[parameters('environmentAbbreviation')]"
+          },
+          "resourceAbbreviations": {
+            "value": "[parameters('resourceAbbreviations')]"
           },
           "firewallSettings": {
             "value": {
@@ -1287,6 +1347,9 @@
             },
             "environmentAbbreviation": {
               "type": "string"
+            },
+            "resourceAbbreviations": {
+              "type": "object"
             },
             "firewallRuleCollectionGroups": {
               "type": "array"
