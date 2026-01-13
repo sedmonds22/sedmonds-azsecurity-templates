@@ -1247,7 +1247,7 @@
     "securityLogAnalyticsWorkspaceName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').logAnalyticsWorkspaces)]",
     "monitoringResourceGroupName": "[if(parameters('deploySentinel'), variables('securityResourceGroupName'), parameters('tier').resourceGroupName)]",
     "logAnalyticsWorkspaceName": "[if(parameters('deploySentinel'), variables('securityLogAnalyticsWorkspaceName'), parameters('tier').namingConvention.logAnalyticsWorkspace)]",
-    "logAnalyticsWorkspaceResourceId": "[resourceId(parameters('tier').subscriptionId, variables('monitoringResourceGroupName'), 'Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+    "logAnalyticsWorkspaceResourceId": "[if(parameters('deploySentinel'), resourceId(parameters('operationsSubscriptionId'), variables('securityResourceGroupName'), 'Microsoft.OperationalInsights/workspaces', variables('securityLogAnalyticsWorkspaceName')), resourceId(parameters('tier').subscriptionId, variables('monitoringResourceGroupName'), 'Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName')))]"
   },
   "resources": [
     {
@@ -32671,7 +32671,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-workbook-azureactivity-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32698,7 +32698,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-workbook-entra-audit-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32725,7 +32725,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-workbook-entra-signins-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
