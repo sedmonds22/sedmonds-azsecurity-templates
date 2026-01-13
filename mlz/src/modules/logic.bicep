@@ -13,6 +13,8 @@ param location string
 param networks array
 param stampIndex string = ''
 
+var normalizedLocation = toLower(replace(location, ' ', ''))
+
 var directionShortNames = {
   east: 'e'
   eastcentral: 'ec'
@@ -29,10 +31,10 @@ var environmentName = {
   test: 'Test'
 }
 var locations = loadJsonContent('../data/locations.json')[?environment().name] ?? {
-  '${location}': {
-    abbreviation: directionShortNames[skip(location, length(location) - 4)]
-    timeDifference: contains(location, 'east') ? '-5:00' : contains(location, 'west') ? '-8:00' : '0:00'
-    timeZone: contains(location, 'east') ? 'Eastern Standard Time' : contains(location, 'west') ? 'Pacific Standard Time' : 'GMT Standard Time'
+  '${normalizedLocation}': {
+    abbreviation: directionShortNames[skip(normalizedLocation, length(normalizedLocation) - 4)]
+    timeDifference: contains(normalizedLocation, 'east') ? '-5:00' : contains(normalizedLocation, 'west') ? '-8:00' : '0:00'
+    timeZone: contains(normalizedLocation, 'east') ? 'Eastern Standard Time' : contains(normalizedLocation, 'west') ? 'Pacific Standard Time' : 'GMT Standard Time'
   }
 }
 var mlzTags = {
@@ -49,7 +51,7 @@ module namingConventions 'naming-convention.bicep' = [for network in networks: {
     delimiter: delimiter
     environmentAbbreviation: environmentAbbreviation
     identifier: identifier
-    locationAbbreviation: locations[location].abbreviation
+    locationAbbreviation: locations[normalizedLocation].abbreviation
     networkName: network.name
     resourceAbbreviations: resourceAbbreviations
     stampIndex: stampIndex
@@ -64,7 +66,7 @@ module privateDnsZones 'private-dns-zone-names.bicep' = {
 }
 
 output delimiter string = delimiter
-output locationProperties object = locations[location]
+output locationProperties object = locations[normalizedLocation]
 output mlzTags object = mlzTags
 output privateDnsZones array = privateDnsZones.outputs.names
 output resourceAbbreviations object = resourceAbbreviations
