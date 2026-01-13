@@ -64,7 +64,7 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existin
   name: workspaceName
 }
 
-resource entraConnector 'Microsoft.SecurityInsights/dataConnectors@2022-11-01-preview' = if (enableEntraConnector) {
+resource entraConnector 'Microsoft.SecurityInsights/dataConnectors@2025-06-01' = if (enableEntraConnector) {
   name: 'AzureActiveDirectory'
   scope: workspace
   kind: 'AzureActiveDirectory'
