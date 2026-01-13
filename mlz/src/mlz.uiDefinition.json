@@ -998,6 +998,16 @@
                   "constraints": {
                     "required": false
                   }
+                },
+                {
+                  "name": "enableEntraIdDataConnector",
+                  "type": "Microsoft.Common.CheckBox",
+                  "label": "Configure Microsoft Entra ID data connector?",
+                  "toolTip": "Optional. Enables/configures the Microsoft Entra ID data connector in Microsoft Sentinel. If the workspace is set as the Primary workspace in Microsoft 365 Defender, connector changes may be blocked in Sentinel; manage the connector in Defender instead.",
+                  "visible": "[steps('compliance').sentinelSection.deploySentinel]",
+                  "constraints": {
+                    "required": false
+                  }
                 }
               ]
             }
@@ -1636,7 +1646,7 @@
         "deployNetworkWatcherTrafficAnalytics": "[steps('networking').flowLogsSection.deployTrafficAnalytics]",
         "deployPolicy": "[steps('compliance').policySection.deployPolicy]",
         "deploySentinel": "[steps('compliance').sentinelSection.deploySentinel]",
-        "enableEntraIdDataConnector": "[steps('compliance').sentinelSection.deploySentinel]",
+        "enableEntraIdDataConnector": "[steps('compliance').sentinelSection.enableEntraIdDataConnector]",
         "enableEntityBehavior": "[steps('compliance').sentinelSection.deploySentinel]",
         "deployEntityBehaviorSetting": "[steps('compliance').sentinelSection.deploySentinel]",
         "enableUeba": "[steps('compliance').sentinelSection.deploySentinel]",

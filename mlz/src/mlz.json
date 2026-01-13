@@ -5971,7 +5971,7 @@
                     {
                       "condition": "[parameters('enableEntraConnector')]",
                       "type": "Microsoft.SecurityInsights/dataConnectors",
-                      "apiVersion": "2022-11-01-preview",
+                      "apiVersion": "2025-06-01",
                       "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('workspaceName'))]",
                       "name": "AzureActiveDirectory",
                       "kind": "AzureActiveDirectory",
