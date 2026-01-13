@@ -222,6 +222,13 @@
         "description": "Map of resource type abbreviations used by naming conventions. Default value uses the template's built-in abbreviation map."
       }
     },
+    "tier": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Optional tier object override (e.g., operations tier). When omitted, the template derives the operations tier from the networking deployment outputs."
+      }
+    },
     "enableEntityBehavior": {
       "type": "bool",
       "defaultValue": false,
@@ -1238,9 +1245,11 @@
     "securityNamingConvention": "[format('{0}{1}{2}{1}{3}{1}security{1}{4}', toLower(parameters('identifier')), parameters('delimiter'), parameters('environmentAbbreviation'), parameters('locationAbbreviation'), variables('resourceToken'))]",
     "securityResourceGroupName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').resourceGroups)]",
     "securityLogAnalyticsWorkspaceName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').logAnalyticsWorkspaces)]",
-    "monitoringResourceGroupName": "[if(parameters('deploySentinel'), variables('securityResourceGroupName'), parameters('tier').resourceGroupName)]",
-    "logAnalyticsWorkspaceName": "[if(parameters('deploySentinel'), variables('securityLogAnalyticsWorkspaceName'), parameters('tier').namingConvention.logAnalyticsWorkspace)]",
-    "logAnalyticsWorkspaceResourceId": "[resourceId(parameters('tier').subscriptionId, variables('monitoringResourceGroupName'), 'Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+    "operationsTier": "[filter(reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.tiers.value, lambda('tier', equals(lambdaVariables('tier').name, 'operations')))[0]]",
+    "monitoringTier": "[if(empty(parameters('tier')), variables('operationsTier'), parameters('tier'))]",
+    "monitoringResourceGroupName": "[if(parameters('deploySentinel'), variables('securityResourceGroupName'), variables('monitoringTier').resourceGroupName)]",
+    "logAnalyticsWorkspaceName": "[if(parameters('deploySentinel'), variables('securityLogAnalyticsWorkspaceName'), variables('monitoringTier').namingConvention.logAnalyticsWorkspace)]",
+    "logAnalyticsWorkspaceResourceId": "[resourceId(variables('monitoringTier').subscriptionId, variables('monitoringResourceGroupName'), 'Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
   },
   "resources": [
     {
