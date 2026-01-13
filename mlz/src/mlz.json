@@ -32752,7 +32752,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-workbook-servicehealth-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32779,7 +32779,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-01-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32806,7 +32806,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-02-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32833,7 +32833,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-03-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32860,7 +32860,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-04-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32887,7 +32887,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-05-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32914,7 +32914,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-06-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32941,7 +32941,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-07-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32968,7 +32968,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-08-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -32995,7 +32995,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-09-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -33022,7 +33022,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-10-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -33049,7 +33049,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-11-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -33076,7 +33076,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-12-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -33103,7 +33103,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-13-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -33130,7 +33130,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-14-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
@@ -33157,7 +33157,7 @@
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-custom-analytics-15-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('tier').subscriptionId]",
+      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
       "resourceGroup": "[variables('monitoringResourceGroupName')]",
       "properties": {
         "mode": "Incremental",
