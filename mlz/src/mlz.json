@@ -1870,7 +1870,8 @@
                       "test": "Test"
                     },
                     "normalizedLocation": "[toLower(replace(parameters('location'), ' ', ''))]",
-                    "locations": "[coalesce(tryGet(variables('$fxv#0'), environment().name), createObject(format('{0}', parameters('location')), createObject('abbreviation', variables('directionShortNames')[skip(parameters('location'), sub(length(parameters('location')), 4))], 'timeDifference', if(contains(parameters('location'), 'east'), '-5:00', if(contains(parameters('location'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(parameters('location'), 'east'), 'Eastern Standard Time', if(contains(parameters('location'), 'west'), 'Pacific Standard Time', 'GMT Standard Time')))))]",
+                    "locations": "[coalesce(tryGet(variables('$fxv#0'), environment().name), createObject(format('{0}', variables('normalizedLocation')), createObject('abbreviation', coalesce(tryGet(variables('directionShortNames'), skip(variables('normalizedLocation'), sub(length(variables('normalizedLocation')), 4))), take(variables('normalizedLocation'), 4)), 'timeDifference', if(contains(variables('normalizedLocation'), 'east'), '-5:00', if(contains(variables('normalizedLocation'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(variables('normalizedLocation'), 'east'), 'Eastern Standard Time', if(contains(variables('normalizedLocation'), 'west'), 'Pacific Standard Time', 'GMT Standard Time')))))]",
+                    "resolvedLocation": "[coalesce(tryGet(variables('locations'), variables('normalizedLocation')), createObject('abbreviation', coalesce(tryGet(variables('directionShortNames'), skip(variables('normalizedLocation'), sub(length(variables('normalizedLocation')), 4))), take(variables('normalizedLocation'), 4)), 'timeDifference', if(contains(variables('normalizedLocation'), 'east'), '-5:00', if(contains(variables('normalizedLocation'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(variables('normalizedLocation'), 'east'), 'Eastern Standard Time', if(contains(variables('normalizedLocation'), 'west'), 'Pacific Standard Time', 'GMT Standard Time'))))]",
                     "mlzTags": {
                       "environment": "[variables('environmentName')[parameters('environmentAbbreviation')]]",
                       "identifier": "[parameters('identifier')]",
@@ -1905,7 +1906,7 @@
                             "value": "[parameters('identifier')]"
                           },
                           "locationAbbreviation": {
-                            "value": "[variables('locations')[variables('normalizedLocation')].abbreviation]"
+                            "value": "[variables('resolvedLocation').abbreviation]"
                           },
                           "networkName": {
                             "value": "[parameters('networks')[copyIndex()].name]"
@@ -2135,7 +2136,7 @@
                     },
                     "locationProperties": {
                       "type": "object",
-                      "value": "[variables('locations')[parameters('location')]]"
+                      "value": "[variables('resolvedLocation')]"
                     },
                     "mlzTags": {
                       "type": "object",
