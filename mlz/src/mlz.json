@@ -5628,7 +5628,7 @@
                       },
                       "properties": {
                         "azCliVersion": "2.61.0",
-                        "cleanupPreference": "OnSuccess",
+                        "cleanupPreference": "OnExpiration",
                         "retentionInterval": "P1D",
                         "timeout": "PT15M",
                         "forceUpdateTag": "[if(empty(parameters('sentinelAutomationPrincipalId')), 'auto', parameters('sentinelAutomationPrincipalId'))]",
@@ -5676,7 +5676,7 @@
                       },
                       "properties": {
                         "azCliVersion": "2.61.0",
-                        "cleanupPreference": "OnSuccess",
+                        "cleanupPreference": "OnExpiration",
                         "retentionInterval": "P1D",
                         "timeout": "PT10M",
                         "environmentVariables": [
@@ -5713,7 +5713,7 @@
                       },
                       "properties": {
                         "azCliVersion": "2.61.0",
-                        "cleanupPreference": "OnSuccess",
+                        "cleanupPreference": "OnExpiration",
                         "retentionInterval": "P1D",
                         "timeout": "PT10M",
                         "environmentVariables": [
@@ -5749,7 +5749,7 @@
                       },
                       "properties": {
                         "azCliVersion": "2.61.0",
-                        "cleanupPreference": "OnSuccess",
+                        "cleanupPreference": "OnExpiration",
                         "retentionInterval": "P1D",
                         "timeout": "PT10M",
                         "environmentVariables": [

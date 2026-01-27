@@ -104,7 +104,7 @@ resource automationPrincipalLookup 'Microsoft.Resources/deploymentScripts@2020-1
   }
   properties: {
     azCliVersion: '2.61.0'
-    cleanupPreference: 'OnSuccess'
+    cleanupPreference: 'OnExpiration'
     retentionInterval: 'P1D'
     timeout: 'PT15M'
     forceUpdateTag: empty(sentinelAutomationPrincipalId) ? 'auto' : sentinelAutomationPrincipalId
@@ -170,7 +170,7 @@ resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020
   }
   properties: {
     azCliVersion: '2.61.0'
-    cleanupPreference: 'OnSuccess'
+    cleanupPreference: 'OnExpiration'
     retentionInterval: 'P1D'
     timeout: 'PT10M'
     environmentVariables: [
@@ -228,7 +228,7 @@ resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = 
   }
   properties: {
     azCliVersion: '2.61.0'
-    cleanupPreference: 'OnSuccess'
+    cleanupPreference: 'OnExpiration'
     retentionInterval: 'P1D'
     timeout: 'PT10M'
     environmentVariables: [
@@ -290,7 +290,7 @@ resource anomaliesSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-0
   }
   properties: {
     azCliVersion: '2.61.0'
-    cleanupPreference: 'OnSuccess'
+    cleanupPreference: 'OnExpiration'
     retentionInterval: 'P1D'
     timeout: 'PT10M'
     environmentVariables: [
