@@ -25,6 +25,19 @@ var directionShortNames = {
   west: 'w'
   westcentral: 'wc'
 }
+
+var inferredDirectionKey = contains(normalizedLocation, 'northcentral') ? 'northcentral'
+  : contains(normalizedLocation, 'southcentral') ? 'southcentral'
+  : contains(normalizedLocation, 'eastcentral') ? 'eastcentral'
+  : contains(normalizedLocation, 'westcentral') ? 'westcentral'
+  : contains(normalizedLocation, 'north') ? 'north'
+  : contains(normalizedLocation, 'south') ? 'south'
+  : contains(normalizedLocation, 'east') ? 'east'
+  : contains(normalizedLocation, 'west') ? 'west'
+  : ''
+
+var inferredLocationAbbreviation = !empty(inferredDirectionKey) ? directionShortNames[inferredDirectionKey]
+  : (length(normalizedLocation) >= 4 ? take(normalizedLocation, 4) : normalizedLocation)
 var environmentName = {
   dev: 'Development'
   prod: 'Production'
@@ -32,11 +45,16 @@ var environmentName = {
 }
 var locations = loadJsonContent('../data/locations.json')[?environment().name] ?? {
   '${normalizedLocation}': {
-    abbreviation: directionShortNames[skip(normalizedLocation, length(normalizedLocation) - 4)]
+    abbreviation: inferredLocationAbbreviation
     timeDifference: contains(normalizedLocation, 'east') ? '-5:00' : contains(normalizedLocation, 'west') ? '-8:00' : '0:00'
     timeZone: contains(normalizedLocation, 'east') ? 'Eastern Standard Time' : contains(normalizedLocation, 'west') ? 'Pacific Standard Time' : 'GMT Standard Time'
   }
 }
+
+var effectiveLocationAbbreviation = empty(locations[normalizedLocation].abbreviation) ? inferredLocationAbbreviation : locations[normalizedLocation].abbreviation
+var effectiveLocationProperties = union(locations[normalizedLocation], {
+  abbreviation: effectiveLocationAbbreviation
+})
 var mlzTags = {
   environment: environmentName[environmentAbbreviation]
   identifier: identifier
@@ -51,7 +69,7 @@ module namingConventions 'naming-convention.bicep' = [for network in networks: {
     delimiter: delimiter
     environmentAbbreviation: environmentAbbreviation
     identifier: identifier
-    locationAbbreviation: locations[normalizedLocation].abbreviation
+    locationAbbreviation: effectiveLocationProperties.abbreviation
     networkName: network.name
     resourceAbbreviations: resourceAbbreviations
     stampIndex: stampIndex
@@ -66,7 +84,7 @@ module privateDnsZones 'private-dns-zone-names.bicep' = {
 }
 
 output delimiter string = delimiter
-output locationProperties object = locations[normalizedLocation]
+output locationProperties object = effectiveLocationProperties
 output mlzTags object = mlzTags
 output privateDnsZones array = privateDnsZones.outputs.names
 output resourceAbbreviations object = resourceAbbreviations

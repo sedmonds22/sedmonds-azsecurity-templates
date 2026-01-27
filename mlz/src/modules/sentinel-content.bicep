@@ -33,6 +33,8 @@ param deployAzureActivitySolution bool = true
 @description('Toggle to install the Microsoft Entra ID Microsoft Sentinel solution when Microsoft Sentinel is enabled.')
 param deployMicrosoftEntraSolution bool = true
 
+var workspaceResourceId = resourceId(workspaceSubscriptionId, workspaceResourceGroupName, 'Microsoft.OperationalInsights/workspaces', workspaceName)
+
 module azureActivitySolution '../../../content/packages/azure-activity/mainTemplate.json' = if (deployAzureActivitySolution) {
   name: 'deploy-azure-activity-${deploymentNameSuffix}'
   scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
@@ -45,6 +47,26 @@ module azureActivitySolution '../../../content/packages/azure-activity/mainTempl
   }
 }
 
+module azureActivityWorkbook '../../../custom-workbooks/deploy/AzureActivity.workbook.template.json' = if (deployAzureActivitySolution) {
+  name: 'deploy-workbook-azure-activity-${deploymentNameSuffix}'
+  scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
+  params: {
+    workspaceResourceId: workspaceResourceId
+    location: workspaceLocation
+    displayName: azureActivityWorkbookName
+  }
+}
+
+module azureServiceHealthWorkbook '../../../custom-workbooks/deploy/AzureServiceHealthWorkbook.workbook.template.json' = if (deployAzureActivitySolution) {
+  name: 'deploy-workbook-azure-service-health-${deploymentNameSuffix}'
+  scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
+  params: {
+    workspaceResourceId: workspaceResourceId
+    location: workspaceLocation
+    displayName: azureServiceHealthWorkbookName
+  }
+}
+
 module microsoftEntraSolution '../../../content/packages/microsoft-entra-id/mainTemplate.json' = if (deployMicrosoftEntraSolution) {
   name: 'deploy-entra-solution-${deploymentNameSuffix}'
   scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
@@ -54,5 +76,25 @@ module microsoftEntraSolution '../../../content/packages/microsoft-entra-id/main
     workspace: workspaceName
     'workbook1-name': entraAuditWorkbookName
     'workbook2-name': entraSigninWorkbookName
+  }
+}
+
+module microsoftEntraAuditWorkbook '../../../custom-workbooks/deploy/AzureActiveDirectoryAuditLogs.workbook.template.json' = if (deployMicrosoftEntraSolution) {
+  name: 'deploy-workbook-entra-audit-${deploymentNameSuffix}'
+  scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
+  params: {
+    workspaceResourceId: workspaceResourceId
+    location: workspaceLocation
+    displayName: entraAuditWorkbookName
+  }
+}
+
+module microsoftEntraSigninWorkbook '../../../custom-workbooks/deploy/AzureActiveDirectorySignins.workbook.template.json' = if (deployMicrosoftEntraSolution) {
+  name: 'deploy-workbook-entra-signin-${deploymentNameSuffix}'
+  scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
+  params: {
+    workspaceResourceId: workspaceResourceId
+    location: workspaceLocation
+    displayName: entraSigninWorkbookName
   }
 }
