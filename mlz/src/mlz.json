@@ -1190,7 +1190,7 @@
       }
     ],
     "deploymentTenantId": "[tenant().tenantId]",
-    "templateBaseUri": "[if(empty(deployment().properties.templateLink.uri), 'https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main', replace(deployment().properties.templateLink.uri, '/mlz/src/mlz.json', ''))]",
+    "templateBaseUri": "[if(empty(deployment().properties.templateLink.uri), 'https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main', replace(split(deployment().properties.templateLink.uri, '?')[0], '/mlz/src/mlz.json', ''))]",
     "firewallClientPrivateIpAddress": "[variables('firewallClientUsableIpAddresses')[3]]",
     "resourceAbbreviations": {
       "actionGroups": "ag",
