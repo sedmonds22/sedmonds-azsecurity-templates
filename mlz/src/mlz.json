@@ -1243,7 +1243,9 @@
       "workspaces": "vdws"
     },
     "resourceToken": "resource_token",
-    "securityNamingConvention": "[format('{0}{1}{2}{1}{3}{1}security{1}{4}', toLower(parameters('identifier')), parameters('delimiter'), parameters('environmentAbbreviation'), parameters('locationAbbreviation'), variables('resourceToken'))]",
+    "normalizedLocation": "[toLower(replace(parameters('location'), ' ', ''))]",
+    "effectiveLocationAbbreviation": "[if(not(empty(parameters('locationAbbreviation'))), parameters('locationAbbreviation'), take(variables('normalizedLocation'), 4))]",
+    "securityNamingConvention": "[format('{0}{1}{2}{1}{3}{1}security{1}{4}', toLower(parameters('identifier')), parameters('delimiter'), parameters('environmentAbbreviation'), variables('effectiveLocationAbbreviation'), variables('resourceToken'))]",
     "securityResourceGroupName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').resourceGroups)]",
     "securityLogAnalyticsWorkspaceName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').logAnalyticsWorkspaces)]",
     "monitoringResourceGroupName": "[if(parameters('deploySentinel'), variables('securityResourceGroupName'), parameters('tier').resourceGroupName)]",
@@ -6057,7 +6059,79 @@
         }
       },
       "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]"
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]",
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-security-rg-{0}', parameters('deploymentNameSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('deploy-security-rg-{0}', parameters('deploymentNameSuffix'))]",
+      "subscriptionId": "[parameters('operationsSubscriptionId')]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "deploySentinel": {
+            "value": "[parameters('deploySentinel')]"
+          },
+          "mlzTags": {
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('get-logic-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.mlzTags.value]"
+          },
+          "name": {
+            "value": "[variables('securityResourceGroupName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "deploySentinel": {
+              "type": "bool"
+            },
+            "mlzTags": {
+              "type": "object"
+            },
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            }
+          },
+          "resources": [
+            {
+              "condition": "[parameters('deploySentinel')]",
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2019-05-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[union(coalesce(tryGet(parameters('tags'), 'Microsoft.Resources/resourceGroups'), createObject()), parameters('mlzTags'))]"
+            }
+          ],
+          "outputs": {
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('get-logic-{0}', parameters('deploymentNameSuffix')))]"
       ]
     },
     {
@@ -29097,7 +29171,9 @@
         }
       },
       "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]"
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]",
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-security-rg-{0}', parameters('deploymentNameSuffix')))]",
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]"
       ]
     },
     {
