@@ -220,7 +220,7 @@
               ],
               "selectAllValue": ""
             },
-            "jsonData": "[\"SignInLogs\", \"NonInteractiveUserSignInLogs\"]"
+            "jsonData": "[concat('[\\\"SignInLogs\\\", \\\"NonInteractiveUserSignInLogs\\\"]')]"
           }
         ],
         "style": "pills",
