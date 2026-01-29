@@ -20,7 +20,6 @@ param enableAnomalies = true
 param deployUebaSetting = true
 param enableAzureActivityDataConnector = true
 param azureActivityDiagnosticSettingName = 'diag-azureactivity-mlz06'
-param enableEntraIdDataConnector = true
 param deploySentinelAutomationScript = false
 param logAnalyticsWorkspaceRetentionInDays = 120
 param tags = {

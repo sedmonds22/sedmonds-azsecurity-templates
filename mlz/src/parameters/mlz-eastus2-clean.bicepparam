@@ -18,7 +18,6 @@ param useEntityBehaviorScript = false
 param enableUeba = true
 param enableAnomalies = true
 param deployUebaSetting = true
-param enableEntraIdDataConnector = true
 param deploySentinelAutomationScript = false
 param logAnalyticsWorkspaceRetentionInDays = 120
 param tags = {

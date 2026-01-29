@@ -17,7 +17,6 @@ param deployEntityBehaviorSetting = true
 param enableUeba = true
 param enableAnomalies = true
 param enableAzureActivityDataConnector = true
-param enableEntraIdDataConnector = true
 param logAnalyticsWorkspaceRetentionInDays = 120
 param tags = {
   environment: 'eastus2-dev'

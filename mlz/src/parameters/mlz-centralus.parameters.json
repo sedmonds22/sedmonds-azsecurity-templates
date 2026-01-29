@@ -59,9 +59,6 @@
     "enableAzureActivityDataConnector": {
       "value": true
     },
-    "enableEntraIdDataConnector": {
-      "value": true
-    },
     "logAnalyticsWorkspaceRetentionInDays": {
       "value": 120
     },

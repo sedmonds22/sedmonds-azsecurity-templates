@@ -23,7 +23,6 @@ param useEntityBehaviorScript = false
 param enableUeba = true
 param enableAnomalies = true
 param deployUebaSetting = true
-param enableEntraIdDataConnector = true
 param deploySentinelAutomationScript = false
 
 // Optional (safety): adopt an existing Activity Log diagnostic setting name if you already have one.

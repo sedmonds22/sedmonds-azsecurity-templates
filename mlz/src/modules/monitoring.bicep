@@ -7,7 +7,6 @@ targetScope = 'subscription'
 
 param deploymentNameSuffix string
 param deploySentinel bool
-param enableEntraConnector bool
 param enableEntityBehavior bool
 param deployEntityBehaviorSetting bool
 param useEntityBehaviorScript bool = true
@@ -129,13 +128,12 @@ module sentinelSettings 'sentinel-settings.bicep' = if (deploySentinel) {
   ]
 }
 
-module sentinelConnectors 'sentinel-connectors.bicep' = if (deploySentinel && enableEntraConnector) {
+module sentinelConnectors 'sentinel-connectors.bicep' = if (deploySentinel) {
   name: 'configure-sentinel-connectors-${deploymentNameSuffix}'
   scope: resourceGroup(tier.subscriptionId, targetResourceGroupName)
   params: {
     workspaceName: targetWorkspaceName
     tenantId: tenantId
-    enableEntraConnector: enableEntraConnector
     entraDataTypeStates: entraConnectorDataTypeStates
   }
   dependsOn: [

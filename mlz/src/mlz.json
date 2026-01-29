@@ -336,13 +336,6 @@
         "description": "Retention policy applied to each Azure Activity log category streamed to Microsoft Sentinel."
       }
     },
-    "enableEntraIdDataConnector": {
-      "type": "bool",
-      "defaultValue": true,
-      "metadata": {
-        "description": "Toggle to configure the Microsoft Entra ID data connector for Microsoft Sentinel and ensure required log types remain enabled. If this workspace is set as the Primary workspace in Microsoft 365 Defender, connector changes may be blocked in Sentinel; manage the connector in Defender instead."
-      }
-    },
     "entraDataConnectorLogStates": {
       "type": "object",
       "defaultValue": {
@@ -4745,9 +4738,6 @@
           "azureActivityRetentionPolicy": {
             "value": "[parameters('azureActivityDiagnosticRetentionPolicy')]"
           },
-          "enableEntraConnector": {
-            "value": "[parameters('enableEntraIdDataConnector')]"
-          },
           "enableEntityBehavior": {
             "value": "[parameters('enableEntityBehavior')]"
           },
@@ -4864,9 +4854,6 @@
             },
             "azureActivityRetentionPolicy": {
               "type": "object"
-            },
-            "enableEntraConnector": {
-              "type": "bool"
             },
             "enableEntityBehavior": {
               "type": "bool"
@@ -5901,7 +5888,7 @@
               ]
             },
             {
-              "condition": "[and(parameters('deploySentinel'), parameters('enableEntraConnector'))]",
+              "condition": "[parameters('deploySentinel')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('configure-sentinel-connectors-{0}', parameters('deploymentNameSuffix'))]",
@@ -5918,9 +5905,6 @@
                   },
                   "tenantId": {
                     "value": "[parameters('tenantId')]"
-                  },
-                  "enableEntraConnector": {
-                    "value": "[parameters('enableEntraConnector')]"
                   },
                   "entraDataTypeStates": {
                     "value": "[parameters('entraConnectorDataTypeStates')]"
@@ -5947,13 +5931,6 @@
                       "type": "string",
                       "metadata": {
                         "description": "Tenant ID associated with the Microsoft Sentinel workspace."
-                      }
-                    },
-                    "enableEntraConnector": {
-                      "type": "bool",
-                      "defaultValue": true,
-                      "metadata": {
-                        "description": "Toggle to configure the Microsoft Entra ID data connector within Microsoft Sentinel."
                       }
                     },
                     "entraDataTypeStates": {
@@ -6020,15 +5997,16 @@
                       }
                     },
                     "entraConnectorResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/dataConnectors', 'AzureActiveDirectory')]",
-                    "entraConnectorPayload": "[string(createObject('kind', 'AzureActiveDirectory', 'properties', createObject('tenantId', parameters('tenantId'), 'dataTypes', variables('normalizedEntraDataTypes'))))]",
+                    "entraConnectorPayload": "[string(createObject('location', reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2022-10-01').location, 'kind', 'AzureActiveDirectory', 'properties', createObject('tenantId', parameters('tenantId'), 'dataTypes', variables('normalizedEntraDataTypes'))))]",
                     "sentinelScriptIdentityResourceId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]"
                   },
                   "resources": [
                     {
-                      "condition": "[parameters('enableEntraConnector')]",
                       "type": "Microsoft.Resources/deploymentScripts",
                       "apiVersion": "2020-10-01",
                       "name": "[format('configure-entra-connector-{0}', uniqueString(resourceGroup().id))]",
+                      "location": "[resourceGroup().location]",
+                      "kind": "AzureCLI",
                       "properties": {
                         "azCliVersion": "2.61.0",
                         "cleanupPreference": "OnExpiration",

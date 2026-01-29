@@ -164,9 +164,6 @@ param deploySentinelAutomationScript bool = true
 @description('Object ID of the Azure Security Insights service principal so Sentinel automation can run playbooks in the operations resource group.')
 param sentinelAutomationPrincipalId string = ''
 
-@description('Toggle to configure the Microsoft Entra ID data connector for Microsoft Sentinel and ensure required log types remain enabled.')
-param enableEntraIdDataConnector bool = true
-
 @description('Desired state for each Microsoft Entra ID log type exposed by the Microsoft Sentinel data connector.')
 param entraDataConnectorLogStates object = {
   SignInLogs: 'Enabled'
@@ -994,7 +991,6 @@ module monitoring 'modules/monitoring.bicep' = {
     deploySentinel: deploySentinel
     securityResourceGroupName: deploySentinel ? securityResourceGroupName : ''
     securityNamingConvention: deploySentinel ? securityNamingConvention.outputs.names : {}
-    enableEntraConnector: enableEntraIdDataConnector
     enableEntityBehavior: enableEntityBehavior
     deployEntityBehaviorSetting: deployEntityBehaviorSetting
     useEntityBehaviorScript: useEntityBehaviorScript

@@ -6,9 +6,6 @@ param workspaceName string
 @description('Tenant ID associated with the Microsoft Sentinel workspace.')
 param tenantId string
 
-@description('Toggle to configure the Microsoft Entra ID data connector within Microsoft Sentinel.')
-param enableEntraConnector bool = true
-
 @description('Desired state (Enabled/Disabled) for each Microsoft Entra ID log type exposed by the data connector.')
 param entraDataTypeStates object = {
   SignInLogs: 'Enabled'
@@ -72,6 +69,7 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existin
 // Use a deployment script to upsert idempotently.
 var entraConnectorResourceId = '${workspace.id}/providers/Microsoft.SecurityInsights/dataConnectors/AzureActiveDirectory'
 var entraConnectorPayload = string({
+  location: workspace.location
   kind: 'AzureActiveDirectory'
   properties: {
     tenantId: tenantId
@@ -84,7 +82,7 @@ resource sentinelScriptIdentity 'Microsoft.ManagedIdentity/userAssignedIdentitie
   name: 'sentinel-script-${uniqueString(resourceGroup().id)}'
 }
 
-resource configureEntraConnector 'Microsoft.Resources/deploymentScripts@2020-10-01' = if (enableEntraConnector) {
+resource configureEntraConnector 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   name: 'configure-entra-connector-${uniqueString(resourceGroup().id)}'
   location: resourceGroup().location
   kind: 'AzureCLI'
