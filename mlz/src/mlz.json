@@ -1867,14 +1867,20 @@
                       "west": "w",
                       "westcentral": "wc"
                     },
+                    "locationAbbreviations": {
+                      "eastus": "eus",
+                      "eastus2": "use2",
+                      "westus": "wus",
+                      "westus2": "wus2"
+                    },
                     "environmentName": {
                       "dev": "Development",
                       "prod": "Production",
                       "test": "Test"
                     },
                     "normalizedLocation": "[toLower(replace(parameters('location'), ' ', ''))]",
-                    "locations": "[coalesce(tryGet(variables('$fxv#0'), environment().name), createObject(format('{0}', variables('normalizedLocation')), createObject('abbreviation', coalesce(tryGet(variables('directionShortNames'), skip(variables('normalizedLocation'), sub(length(variables('normalizedLocation')), 4))), take(variables('normalizedLocation'), 4)), 'timeDifference', if(contains(variables('normalizedLocation'), 'east'), '-5:00', if(contains(variables('normalizedLocation'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(variables('normalizedLocation'), 'east'), 'Eastern Standard Time', if(contains(variables('normalizedLocation'), 'west'), 'Pacific Standard Time', 'GMT Standard Time')))))]",
-                    "resolvedLocation": "[coalesce(tryGet(variables('locations'), variables('normalizedLocation')), createObject('abbreviation', coalesce(tryGet(variables('directionShortNames'), skip(variables('normalizedLocation'), sub(length(variables('normalizedLocation')), 4))), take(variables('normalizedLocation'), 4)), 'timeDifference', if(contains(variables('normalizedLocation'), 'east'), '-5:00', if(contains(variables('normalizedLocation'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(variables('normalizedLocation'), 'east'), 'Eastern Standard Time', if(contains(variables('normalizedLocation'), 'west'), 'Pacific Standard Time', 'GMT Standard Time'))))]",
+                    "locations": "[coalesce(tryGet(variables('$fxv#0'), environment().name), createObject(format('{0}', variables('normalizedLocation')), createObject('abbreviation', coalesce(tryGet(variables('locationAbbreviations'), variables('normalizedLocation')), tryGet(variables('directionShortNames'), skip(variables('normalizedLocation'), sub(length(variables('normalizedLocation')), 4))), take(variables('normalizedLocation'), 4)), 'timeDifference', if(contains(variables('normalizedLocation'), 'east'), '-5:00', if(contains(variables('normalizedLocation'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(variables('normalizedLocation'), 'east'), 'Eastern Standard Time', if(contains(variables('normalizedLocation'), 'west'), 'Pacific Standard Time', 'GMT Standard Time')))))]",
+                    "resolvedLocation": "[coalesce(tryGet(variables('locations'), variables('normalizedLocation')), createObject('abbreviation', coalesce(tryGet(variables('locationAbbreviations'), variables('normalizedLocation')), tryGet(variables('directionShortNames'), skip(variables('normalizedLocation'), sub(length(variables('normalizedLocation')), 4))), take(variables('normalizedLocation'), 4)), 'timeDifference', if(contains(variables('normalizedLocation'), 'east'), '-5:00', if(contains(variables('normalizedLocation'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(variables('normalizedLocation'), 'east'), 'Eastern Standard Time', if(contains(variables('normalizedLocation'), 'west'), 'Pacific Standard Time', 'GMT Standard Time'))))]",
                     "mlzTags": {
                       "environment": "[variables('environmentName')[parameters('environmentAbbreviation')]]",
                       "identifier": "[parameters('identifier')]",
