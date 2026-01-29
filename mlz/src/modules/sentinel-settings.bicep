@@ -40,8 +40,7 @@ param deploySentinelAutomationScript bool = true
 var sentinelAutomationContributorRoleDefinitionGuid = 'f4c81013-99ee-4d62-a7ee-b3f1f648599a'
 var workspaceContributorRoleDefinitionGuid = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
 var shouldRunAutomationScript = deploySentinelAutomationScript
-var shouldConfigureEntitySetting = enableEntityBehavior && deployEntityBehaviorSetting
-var shouldDeployEntitySettingDirect = false
+var shouldConfigureEntitySetting = enableEntityBehavior && deployEntityBehaviorSetting && (useEntityBehaviorScript || !useEntityBehaviorScript)
 var shouldConfigureUebaSetting = enableUeba && deployUebaSetting && shouldConfigureEntitySetting
 var shouldConfigureAnomaliesSetting = enableAnomalies
 var entityBehaviorSettingResourceId = extensionResourceId(workspace.id, 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')
@@ -274,6 +273,7 @@ resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = 
   }
   dependsOn: [
     sentinel
+    entityBehaviorSettingScript
     automationScriptSentinelRoleAssignment
   ]
 }
