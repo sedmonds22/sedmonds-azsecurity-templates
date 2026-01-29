@@ -5968,6 +5968,13 @@
                       "metadata": {
                         "description": "Desired state (Enabled/Disabled) for each Microsoft Entra ID log type exposed by the data connector."
                       }
+                    },
+                    "connectorApiVersion": {
+                      "type": "string",
+                      "defaultValue": "2022-11-01-preview",
+                      "metadata": {
+                        "description": "API version to use when configuring the Microsoft Sentinel data connector."
+                      }
                     }
                   },
                   "variables": {
@@ -6005,19 +6012,44 @@
                       "alerts": {
                         "state": "[parameters('entraDataTypeStates').alerts]"
                       }
-                    }
+                    },
+                    "entraConnectorResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/dataConnectors', 'AzureActiveDirectory')]",
+                    "entraConnectorPayload": "[string(createObject('kind', 'AzureActiveDirectory', 'properties', createObject('tenantId', parameters('tenantId'), 'dataTypes', variables('normalizedEntraDataTypes'))))]",
+                    "sentinelScriptIdentityResourceId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]"
                   },
                   "resources": [
                     {
                       "condition": "[parameters('enableEntraConnector')]",
-                      "type": "Microsoft.SecurityInsights/dataConnectors",
-                      "apiVersion": "2025-06-01",
-                      "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('workspaceName'))]",
-                      "name": "AzureActiveDirectory",
-                      "kind": "AzureActiveDirectory",
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[format('configure-entra-connector-{0}', uniqueString(resourceGroup().id))]",
                       "properties": {
-                        "tenantId": "[parameters('tenantId')]",
-                        "dataTypes": "[json(string(variables('normalizedEntraDataTypes')))]"
+                        "azCliVersion": "2.61.0",
+                        "cleanupPreference": "OnExpiration",
+                        "retentionInterval": "P1D",
+                        "timeout": "PT10M",
+                        "forceUpdateTag": "[format('{0}-{1}', parameters('tenantId'), base64(variables('entraConnectorPayload')))]",
+                        "environmentVariables": [
+                          {
+                            "name": "ENTRA_CONNECTOR_ID",
+                            "value": "[variables('entraConnectorResourceId')]"
+                          },
+                          {
+                            "name": "ENTRA_CONNECTOR_PAYLOAD",
+                            "value": "[variables('entraConnectorPayload')]"
+                          },
+                          {
+                            "name": "ENTRA_CONNECTOR_API_VERSION",
+                            "value": "[parameters('connectorApiVersion')]"
+                          }
+                        ],
+                        "scriptContent": "set -uo pipefail\n\nresourceId=\"$ENTRA_CONNECTOR_ID\"\napiVersion=\"$ENTRA_CONNECTOR_API_VERSION\"\npayload=\"$ENTRA_CONNECTOR_PAYLOAD\"\n\netag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\n\nif [ -n \"$etag\" ]; then\n  response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\nelse\n  response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\nfi\n\nif [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\n  if echo \"$response\" | grep -qi \"already exists\"; then\n    echo \"$response\" >&2\n    exit 0\n  fi\n\n  # If the workspace is the Primary workspace in Microsoft 365 Defender, connector changes may be blocked in Sentinel.\n  if echo \"$response\" | grep -qi \"blocked\"; then\n    echo \"$response\" >&2\n    exit 0\n  fi\n\n  echo \"$response\" >&2\n  exit ${rc:-1}\nfi\n"
+                      },
+                      "identity": {
+                        "type": "UserAssigned",
+                        "userAssignedIdentities": {
+                          "[format('{0}', variables('sentinelScriptIdentityResourceId'))]": {}
+                        }
                       }
                     }
                   ]
