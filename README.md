@@ -14,7 +14,7 @@ It exists primarily to provide a **public, anonymous-download location** for tem
 This repo also includes a copy of **Mission Landing Zone** under `mlz/`.
 
 - Docs: [mlz/README.md](mlz/README.md)
-- Deploy: [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.json%3Fv%3D0b0afa5/uiFormDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.uiDefinition.json%3Fv%3D0b0afa5)
+- Deploy: [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#blade/Microsoft_Azure_CreateUIDef/CustomDeploymentBlade/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.json%3Fv%3D8556a11/uiFormDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Fsedmonds22%2Fsedmonds-azsecurity-templates%2Fmain%2Fmlz%2Fsrc%2Fmlz.uiDefinition.json%3Fv%3D8556a11)
 
 ## Deploy (Azure portal)
 
