@@ -5903,6 +5903,9 @@
                   "workspaceName": {
                     "value": "[variables('logAnalyticsWorkspaceName')]"
                   },
+                  "workspaceLocation": {
+                    "value": "[parameters('location')]"
+                  },
                   "tenantId": {
                     "value": "[parameters('tenantId')]"
                   },
@@ -5925,6 +5928,12 @@
                       "type": "string",
                       "metadata": {
                         "description": "Name of the Log Analytics workspace that hosts Microsoft Sentinel."
+                      }
+                    },
+                    "workspaceLocation": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Azure region for the Log Analytics workspace (used for connector 'location')."
                       }
                     },
                     "tenantId": {
@@ -5997,7 +6006,7 @@
                       }
                     },
                     "entraConnectorResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/dataConnectors', 'AzureActiveDirectory')]",
-                    "entraConnectorPayload": "[string(createObject('location', reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2022-10-01').location, 'kind', 'AzureActiveDirectory', 'properties', createObject('tenantId', parameters('tenantId'), 'dataTypes', variables('normalizedEntraDataTypes'))))]",
+                    "entraConnectorPayload": "[string(createObject('location', parameters('workspaceLocation'), 'kind', 'AzureActiveDirectory', 'properties', createObject('tenantId', parameters('tenantId'), 'dataTypes', variables('normalizedEntraDataTypes'))))]",
                     "sentinelScriptIdentityResourceId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]"
                   },
                   "resources": [
