@@ -203,6 +203,12 @@ resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020
           exit 0
         fi
 
+        # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, setting changes may be blocked.
+        if echo "$response" | grep -qi "changes.*disabled\|primary.*workspace\|threat protection portal"; then
+          echo "$response" >&2
+          exit 0
+        fi
+
         echo "$response" >&2
         exit ${rc:-1}
       fi
@@ -266,6 +272,12 @@ resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = 
           exit 0
         fi
 
+        # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, setting changes may be blocked.
+        if echo "$response" | grep -qi "changes.*disabled\|primary.*workspace\|threat protection portal"; then
+          echo "$response" >&2
+          exit 0
+        fi
+
         echo "$response" >&2
         exit ${rc:-1}
       fi
@@ -319,6 +331,12 @@ resource anomaliesSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-0
 
       if [ -n "${rc:-}" ] && [ "${rc:-0}" -ne 0 ]; then
         if echo "$response" | grep -q "Only 'Security Administrator' and 'Global Administrator'"; then
+          echo "$response" >&2
+          exit 0
+        fi
+
+        # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, setting changes may be blocked.
+        if echo "$response" | grep -qi "changes.*disabled\|primary.*workspace\|threat protection portal"; then
           echo "$response" >&2
           exit 0
         fi
