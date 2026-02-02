@@ -133,8 +133,8 @@ resource configureEntraConnector 'Microsoft.Resources/deploymentScripts@2020-10-
           exit 0
         fi
 
-        # If the workspace is the Primary workspace in Microsoft 365 Defender, connector changes may be blocked in Sentinel.
-        if echo "$response" | grep -qi "blocked"; then
+        # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, connector changes may be blocked in Sentinel.
+        if echo "$response" | grep -qi "changes to the connector.*disabled\|primary.*workspace\|threat protection portal"; then
           echo "$response" >&2
           exit 0
         fi
