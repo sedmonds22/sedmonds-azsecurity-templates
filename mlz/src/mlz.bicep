@@ -1024,6 +1024,7 @@ module entraDiagnostics '../../bicep/tenant/entra-diagnostic-settings.bicep' = i
     workspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
     logCategories: entraLogCategories
     retentionPolicy: entraRetentionPolicy
+    location: location
   }
 }
 
