@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "1432442339389592694"
+      "templateHash": "17837440523027358271"
     }
   },
   "parameters": {
@@ -5008,7 +5008,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "8957896809634882110"
+              "templateHash": "8166291306361125932"
             }
           },
           "parameters": {
@@ -5600,7 +5600,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "14463898848918448384"
+                      "templateHash": "15866821724080041937"
                     }
                   },
                   "parameters": {
@@ -5823,7 +5823,7 @@
                             "value": "[variables('sentinelAutomationContributorRoleDefinitionGuid')]"
                           }
                         ],
-                        "scriptContent": "      principalId=\"$SENTINEL_SP_OBJECT_ID_OVERRIDE\"\r\n      if [ -z \"$principalId\" ]; then\r\n        principalId=$(az ad sp list --display-name \"Azure Security Insights\" --query \"[0].id\" -o tsv)\r\n      fi\r\n\r\n      if [ -z \"$principalId\" ]; then\r\n        echo \"Azure Security Insights service principal not found\" >&2\r\n        exit 1\r\n      fi\r\n\r\n      scope=\"$SENTINEL_AUTOMATION_SCOPE\"\r\n      roleDefinitionId=\"$SENTINEL_AUTOMATION_ROLE_ID\"\r\n\r\n      existingAssignment=$(az role assignment list --scope \"$scope\" --assignee-object-id \"$principalId\" --role \"$roleDefinitionId\" --query \"[0].id\" -o tsv)\r\n\r\n      if [ -z \"$existingAssignment\" ]; then\r\n        az role assignment create --assignee-object-id \"$principalId\" --assignee-principal-type ServicePrincipal --role \"$roleDefinitionId\" --scope \"$scope\" --only-show-errors\r\n      fi\r\n\r\n      echo \"{\\\"sentinelSpObjectId\\\": \\\"$principalId\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n    "
+                        "scriptContent": "      set -uo pipefail\r\n      \r\n      # Well-known Application ID for Azure Security Insights (constant across all tenants)\r\n      AZURE_SECURITY_INSIGHTS_APP_ID=\"98785600-1bb7-4fb9-b9fa-19afe2c8a360\"\r\n      \r\n      principalId=\"$SENTINEL_SP_OBJECT_ID_OVERRIDE\"\r\n      \r\n      if [ -z \"$principalId\" ]; then\r\n        # Try to look up by App ID first (more reliable)\r\n        principalId=$(az ad sp show --id \"$AZURE_SECURITY_INSIGHTS_APP_ID\" --query \"id\" -o tsv 2>/dev/null || echo \"\")\r\n        \r\n        # Fallback to display name lookup\r\n        if [ -z \"$principalId\" ]; then\r\n          principalId=$(az ad sp list --display-name \"Azure Security Insights\" --query \"[0].id\" -o tsv 2>/dev/null || echo \"\")\r\n        fi\r\n      fi\r\n\r\n      if [ -z \"$principalId\" ]; then\r\n        echo \"INFO: Could not discover Azure Security Insights service principal.\" >&2\r\n        echo \"INFO: This is expected if the identity lacks Directory.Read.All permissions.\" >&2\r\n        echo \"INFO: Sentinel automation role can be assigned manually later if needed.\" >&2\r\n        echo \"INFO: Use the Finalize-SentinelAutomation.ps1 script after deployment.\" >&2\r\n        echo \"{\\\"sentinelSpObjectId\\\": \\\"\\\", \\\"status\\\": \\\"skipped\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n        exit 0\r\n      fi\r\n\r\n      scope=\"$SENTINEL_AUTOMATION_SCOPE\"\r\n      roleDefinitionId=\"$SENTINEL_AUTOMATION_ROLE_ID\"\r\n\r\n      existingAssignment=$(az role assignment list --scope \"$scope\" --assignee-object-id \"$principalId\" --role \"$roleDefinitionId\" --query \"[0].id\" -o tsv 2>/dev/null || echo \"\")\r\n\r\n      if [ -z \"$existingAssignment\" ]; then\r\n        az role assignment create --assignee-object-id \"$principalId\" --assignee-principal-type ServicePrincipal --role \"$roleDefinitionId\" --scope \"$scope\" --only-show-errors 2>&1 || true\r\n      fi\r\n\r\n      echo \"{\\\"sentinelSpObjectId\\\": \\\"$principalId\\\", \\\"status\\\": \\\"configured\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n    "
                       },
                       "dependsOn": [
                         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]"
