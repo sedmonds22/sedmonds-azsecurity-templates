@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "2863410495302379953"
+      "templateHash": "6015638332656585276"
     }
   },
   "parameters": {
@@ -208,44 +208,30 @@
         "description": "When set to \"true\", enables Microsoft Sentinel within the Log Analytics Workspace created in this deployment. Default value = \"false\"."
       }
     },
-    "delimiter": {
+    "sentinelResourceGroupName": {
       "type": "string",
-      "defaultValue": "-",
+      "defaultValue": "",
       "metadata": {
-        "description": "Delimiter used in naming conventions. Default value = \"-\"."
-      }
-    },
-    "resourceAbbreviations": {
-      "type": "object",
-      "defaultValue": "[variables('resourceAbbreviations')]",
-      "metadata": {
-        "description": "Map of resource type abbreviations used by naming conventions. Default value uses the template's built-in abbreviation map."
-      }
-    },
-    "tier": {
-      "type": "object",
-      "defaultValue": {},
-      "metadata": {
-        "description": "Optional tier object override (e.g., operations tier). When omitted, the template derives the operations tier from the networking deployment outputs."
+        "description": "Optional override for the dedicated resource group name to create for Microsoft Sentinel resources when deploySentinel is true. Leave blank to use the MLZ naming convention (security in the 4th naming segment)."
       }
     },
     "enableEntityBehavior": {
       "type": "bool",
       "defaultValue": true,
       "metadata": {
-        "description": "Toggle to configure the Microsoft Sentinel Entity Behavior Analytics setting for Microsoft Entra ID signals. This may require Microsoft Entra directory roles (e.g., Security Administrator / Global Administrator)."
+        "description": "Toggle to configure the Microsoft Sentinel Entity Behavior Analytics setting for Microsoft Entra ID signals."
       }
     },
     "deployEntityBehaviorSetting": {
       "type": "bool",
       "defaultValue": true,
       "metadata": {
-        "description": "When true, provisions the Entity Behavior Analytics setting (directly or via deployment script based on useEntityBehaviorScript)."
+        "description": "Skip provisioning the Entity Behavior Analytics setting when it already exists to avoid concurrency conflicts."
       }
     },
     "useEntityBehaviorScript": {
       "type": "bool",
-      "defaultValue": false,
+      "defaultValue": true,
       "metadata": {
         "description": "Use the deployment script to upsert Entity Behavior settings. Disable for brand new workspaces to provision the resource directly."
       }
@@ -254,7 +240,7 @@
       "type": "bool",
       "defaultValue": true,
       "metadata": {
-        "description": "Toggle to configure UEBA data sources so fusion models have full context. Requires EntityAnalytics to be enabled on the workspace."
+        "description": "Toggle to configure UEBA data sources so fusion models have full context."
       }
     },
     "deployUebaSetting": {
@@ -282,11 +268,25 @@
         "description": "Toggle to ensure Microsoft Sentinel anomaly detection remains enabled."
       }
     },
+    "enableAzureActivityDataConnector": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Toggle to configure Azure Activity ingestion for Microsoft Sentinel by deploying Activity Log diagnostic settings to the Log Analytics workspace."
+      }
+    },
+    "azureActivityDiagnosticSettingName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional name to apply to the Activity Log diagnostic setting in each subscription. Leave blank to use the default naming in the activity-log-diagnostic-settings module."
+      }
+    },
     "deploySentinelAutomationScript": {
       "type": "bool",
-      "defaultValue": false,
+      "defaultValue": true,
       "metadata": {
-        "description": "Toggle to run the built-in script that discovers and assigns the Sentinel automation service principal. This can require Microsoft Entra directory read permissions; leave disabled if your deployment identity is not permitted to query service principals."
+        "description": "Toggle to run the built-in script that discovers and assigns the Sentinel automation service principal. Disable when you will configure automation access separately."
       }
     },
     "sentinelAutomationPrincipalId": {
@@ -294,46 +294,6 @@
       "defaultValue": "",
       "metadata": {
         "description": "Object ID of the Azure Security Insights service principal so Sentinel automation can run playbooks in the operations resource group."
-      }
-    },
-    "enableAzureActivityDataConnector": {
-      "type": "bool",
-      "defaultValue": true,
-      "metadata": {
-        "description": "Toggle to configure the Azure Activity data connector for Microsoft Sentinel."
-      }
-    },
-    "azureActivityDiagnosticSettingName": {
-      "type": "string",
-      "defaultValue": "diag-azureactivity-mlz",
-      "metadata": {
-        "description": "Name assigned to the subscription-level diagnostic setting that streams Azure Activity logs into Microsoft Sentinel."
-      }
-    },
-    "azureActivityLogCategories": {
-      "type": "array",
-      "defaultValue": [
-        "Administrative",
-        "Security",
-        "ServiceHealth",
-        "Alert",
-        "Recommendation",
-        "Policy",
-        "Autoscale",
-        "ResourceHealth"
-      ],
-      "metadata": {
-        "description": "Azure Activity log categories forwarded to Microsoft Sentinel via the diagnostic setting."
-      }
-    },
-    "azureActivityDiagnosticRetentionPolicy": {
-      "type": "object",
-      "defaultValue": {
-        "enabled": false,
-        "days": 0
-      },
-      "metadata": {
-        "description": "Retention policy applied to each Azure Activity log category streamed to Microsoft Sentinel."
       }
     },
     "entraDataConnectorLogStates": {
@@ -353,6 +313,48 @@
       },
       "metadata": {
         "description": "Desired state for each Microsoft Entra ID log type exposed by the Microsoft Sentinel data connector."
+      }
+    },
+    "enableEntraDiagnostics": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Toggle to configure Microsoft Entra ID diagnostic settings."
+      }
+    },
+    "entraDiagnosticName": {
+      "type": "string",
+      "defaultValue": "diag-entra",
+      "metadata": {
+        "description": "Name of the Microsoft Entra ID diagnostic setting."
+      }
+    },
+    "entraLogCategories": {
+      "type": "array",
+      "defaultValue": [
+        "AuditLogs",
+        "SignInLogs",
+        "NonInteractiveUserSignInLogs",
+        "ServicePrincipalSignInLogs",
+        "ManagedIdentitySignInLogs",
+        "ProvisioningLogs",
+        "ADFSSignInLogs",
+        "RiskyUsers",
+        "RiskyServicePrincipals",
+        "UserRiskEvents"
+      ],
+      "metadata": {
+        "description": "Log categories to enable for Microsoft Entra ID diagnostics."
+      }
+    },
+    "entraRetentionPolicy": {
+      "type": "object",
+      "defaultValue": {
+        "enabled": false,
+        "days": 0
+      },
+      "metadata": {
+        "description": "Retention policy configuration for Microsoft Entra ID diagnostics."
       }
     },
     "azureActivityWorkbookName": {
@@ -423,13 +425,6 @@
       ],
       "metadata": {
         "description": "[dev/prod/test] The abbreviation for the target environment."
-      }
-    },
-    "locationAbbreviation": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "A short region abbreviation used in naming (e.g., 'eus', 'eus2', 'wus2'). If left blank, names may be longer/less standardized."
       }
     },
     "firewallClientPublicIPAddressAvailabilityZones": {
@@ -1027,6 +1022,13 @@
         "description": "An array of Public IP Address Diagnostic Metrics for the Azure Firewall. See the following URL for valid settings: https://learn.microsoft.com/azure/azure-monitor/essentials/tutorial-resource-logs?tabs=DDoSProtectionNotifications."
       }
     },
+    "activityLogDiagnosticSettingNames": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Optional map of subscriptionId => Activity Log diagnostic setting name. Used to adopt an existing diagnostic setting name when redeploying."
+      }
+    },
     "sharedServicesNetworkSecurityGroupDiagnosticsLogs": {
       "type": "array",
       "defaultValue": [
@@ -1183,73 +1185,7 @@
       }
     ],
     "deploymentTenantId": "[tenant().tenantId]",
-    "templateBaseUri": "[if(empty(deployment().properties.templateLink.uri), 'https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main', replace(split(deployment().properties.templateLink.uri, '?')[0], '/mlz/src/mlz.json', ''))]",
-    "firewallClientPrivateIpAddress": "[variables('firewallClientUsableIpAddresses')[3]]",
-    "resourceAbbreviations": {
-      "actionGroups": "ag",
-      "applicationGroups": "vdag",
-      "applicationInsights": "appi",
-      "appServicePlans": "asp",
-      "automationAccounts": "aa",
-      "availabilitySets": "avail",
-      "azureFirewalls": "afw",
-      "bastionHosts": "bas",
-      "computeGallieries": "cg",
-      "dataCollectionEndpoints": "dce",
-      "dataCollectionRuleAssociations": "dcra",
-      "dataCollectionRules": "dcr",
-      "diagnosticSettings": "diag",
-      "diskAccesses": "da",
-      "diskEncryptionSets": "des",
-      "disks": "disk",
-      "firewallPolicies": "afwp",
-      "applicationGateways": "agw",
-      "applicationGatewayWafPolicies": "agwwafp",
-      "functionApps": "func",
-      "hostPools": "vdpool",
-      "ipConfigurations": "ipconf",
-      "keyVaults": "kv",
-      "localNetworkGateways": "lgw",
-      "logAnalyticsWorkspaces": "log",
-      "natGateways": "ng",
-      "netAppAccounts": "naa",
-      "netAppAccountsCapacityPools": "cp",
-      "networkInterfaces": "nic",
-      "networkSecurityGroups": "nsg",
-      "networkWatchers": "nw",
-      "networkWatchersFlowLogs": "fl",
-      "privateEndpoints": "pe",
-      "privateLinkScopes": "pls",
-      "publicIPAddresses": "pip",
-      "publicIPPrefixes": "ippre",
-      "recoveryServicesVaults": "rsv",
-      "remoteApplicationGroups": "vdag",
-      "resourceGroups": "rg",
-      "routeTables": "rt",
-      "scalingPlans": "vdscaling",
-      "storageAccounts": "st",
-      "subnets": "snet",
-      "userAssignedIdentities": "id",
-      "virtualMachines": "vm",
-      "virtualNetworkGateways": "vgw",
-      "virtualNetworks": "vnet",
-      "workspaces": "vdws"
-    },
-    "resourceToken": "resource_token",
-    "normalizedLocation": "[toLower(replace(parameters('location'), ' ', ''))]",
-    "locationAbbreviations": {
-      "eastus": "eus",
-      "eastus2": "use2",
-      "westus": "wus",
-      "westus2": "wus2"
-    },
-    "effectiveLocationAbbreviation": "[if(not(empty(parameters('locationAbbreviation'))), parameters('locationAbbreviation'), coalesce(tryGet(variables('locationAbbreviations'), variables('normalizedLocation')), take(variables('normalizedLocation'), 4)))]",
-    "securityNamingConvention": "[format('{0}{1}{2}{1}{3}{1}security{1}{4}', toLower(parameters('identifier')), parameters('delimiter'), parameters('environmentAbbreviation'), variables('effectiveLocationAbbreviation'), variables('resourceToken'))]",
-    "securityResourceGroupName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').resourceGroups)]",
-    "securityLogAnalyticsWorkspaceName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').logAnalyticsWorkspaces)]",
-    "monitoringResourceGroupName": "[if(parameters('deploySentinel'), split(variables('logAnalyticsWorkspaceResourceId'), '/')[4], parameters('tier').resourceGroupName)]",
-    "logAnalyticsWorkspaceName": "[if(parameters('deploySentinel'), variables('securityLogAnalyticsWorkspaceName'), parameters('tier').namingConvention.logAnalyticsWorkspace)]",
-    "logAnalyticsWorkspaceResourceId": "[if(parameters('deploySentinel'), resourceId(parameters('operationsSubscriptionId'), variables('securityResourceGroupName'), 'Microsoft.OperationalInsights/workspaces', variables('securityLogAnalyticsWorkspaceName')), resourceId(parameters('tier').subscriptionId, variables('monitoringResourceGroupName'), 'Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName')))]"
+    "firewallClientPrivateIpAddress": "[variables('firewallClientUsableIpAddresses')[3]]"
   },
   "resources": [
     {
@@ -1288,9 +1224,6 @@
           "environmentAbbreviation": {
             "value": "[parameters('environmentAbbreviation')]"
           },
-          "resourceAbbreviations": {
-            "value": "[parameters('resourceAbbreviations')]"
-          },
           "firewallSettings": {
             "value": {
               "clientPrivateIpAddress": "[variables('firewallClientPrivateIpAddress')]",
@@ -1326,7 +1259,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "709767662766469926"
+              "templateHash": "4024898293509522972"
             }
           },
           "parameters": {
@@ -1356,9 +1289,6 @@
             },
             "environmentAbbreviation": {
               "type": "string"
-            },
-            "resourceAbbreviations": {
-              "type": "object"
             },
             "firewallRuleCollectionGroups": {
               "type": "array"
@@ -1866,20 +1796,12 @@
                       "west": "w",
                       "westcentral": "wc"
                     },
-                    "locationAbbreviations": {
-                      "eastus": "eus",
-                      "eastus2": "use2",
-                      "westus": "wus",
-                      "westus2": "wus2"
-                    },
                     "environmentName": {
                       "dev": "Development",
                       "prod": "Production",
                       "test": "Test"
                     },
-                    "normalizedLocation": "[toLower(replace(parameters('location'), ' ', ''))]",
-                    "locations": "[coalesce(tryGet(variables('$fxv#0'), environment().name), createObject(format('{0}', variables('normalizedLocation')), createObject('abbreviation', coalesce(tryGet(variables('locationAbbreviations'), variables('normalizedLocation')), tryGet(variables('directionShortNames'), skip(variables('normalizedLocation'), sub(length(variables('normalizedLocation')), 4))), take(variables('normalizedLocation'), 4)), 'timeDifference', if(contains(variables('normalizedLocation'), 'east'), '-5:00', if(contains(variables('normalizedLocation'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(variables('normalizedLocation'), 'east'), 'Eastern Standard Time', if(contains(variables('normalizedLocation'), 'west'), 'Pacific Standard Time', 'GMT Standard Time')))))]",
-                    "resolvedLocation": "[coalesce(tryGet(variables('locations'), variables('normalizedLocation')), createObject('abbreviation', coalesce(tryGet(variables('locationAbbreviations'), variables('normalizedLocation')), tryGet(variables('directionShortNames'), skip(variables('normalizedLocation'), sub(length(variables('normalizedLocation')), 4))), take(variables('normalizedLocation'), 4)), 'timeDifference', if(contains(variables('normalizedLocation'), 'east'), '-5:00', if(contains(variables('normalizedLocation'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(variables('normalizedLocation'), 'east'), 'Eastern Standard Time', if(contains(variables('normalizedLocation'), 'west'), 'Pacific Standard Time', 'GMT Standard Time'))))]",
+                    "locations": "[coalesce(tryGet(variables('$fxv#0'), environment().name), createObject(format('{0}', parameters('location')), createObject('abbreviation', variables('directionShortNames')[skip(parameters('location'), sub(length(parameters('location')), 4))], 'timeDifference', if(contains(parameters('location'), 'east'), '-5:00', if(contains(parameters('location'), 'west'), '-8:00', '0:00')), 'timeZone', if(contains(parameters('location'), 'east'), 'Eastern Standard Time', if(contains(parameters('location'), 'west'), 'Pacific Standard Time', 'GMT Standard Time')))))]",
                     "mlzTags": {
                       "environment": "[variables('environmentName')[parameters('environmentAbbreviation')]]",
                       "identifier": "[parameters('identifier')]",
@@ -1914,7 +1836,7 @@
                             "value": "[parameters('identifier')]"
                           },
                           "locationAbbreviation": {
-                            "value": "[variables('resolvedLocation').abbreviation]"
+                            "value": "[variables('locations')[parameters('location')].abbreviation]"
                           },
                           "networkName": {
                             "value": "[parameters('networks')[copyIndex()].name]"
@@ -2144,7 +2066,7 @@
                     },
                     "locationProperties": {
                       "type": "object",
-                      "value": "[variables('resolvedLocation')]"
+                      "value": "[variables('locations')[parameters('location')]]"
                     },
                     "mlzTags": {
                       "type": "object",
@@ -2217,7 +2139,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "12796333039108046880"
+                      "templateHash": "5166644052204527006"
                     }
                   },
                   "parameters": {
@@ -2277,10 +2199,17 @@
                             "_generator": {
                               "name": "bicep",
                               "version": "0.39.26.7824",
-                              "templateHash": "6902469917586543260"
+                              "templateHash": "16171546671354318095"
                             }
                           },
                           "parameters": {
+                            "enabled": {
+                              "type": "bool",
+                              "defaultValue": true,
+                              "metadata": {
+                                "description": "When false, skips creating the resource group and returns empty outputs."
+                              }
+                            },
                             "mlzTags": {
                               "type": "object"
                             },
@@ -2297,6 +2226,7 @@
                           },
                           "resources": [
                             {
+                              "condition": "[parameters('enabled')]",
                               "type": "Microsoft.Resources/resourceGroups",
                               "apiVersion": "2019-05-01",
                               "name": "[parameters('name')]",
@@ -2307,19 +2237,19 @@
                           "outputs": {
                             "id": {
                               "type": "string",
-                              "value": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name'))]"
+                              "value": "[coalesce(if(parameters('enabled'), subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), null()), '')]"
                             },
                             "name": {
                               "type": "string",
-                              "value": "[parameters('name')]"
+                              "value": "[coalesce(if(parameters('enabled'), parameters('name'), null()), '')]"
                             },
                             "location": {
                               "type": "string",
-                              "value": "[reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full').location]"
+                              "value": "[coalesce(tryGet(if(parameters('enabled'), reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full'), null()), 'location'), '')]"
                             },
                             "tags": {
                               "type": "object",
-                              "value": "[reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full').tags]"
+                              "value": "[coalesce(tryGet(if(parameters('enabled'), reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full'), null()), 'tags'), createObject())]"
                             }
                           }
                         }
@@ -4718,6 +4648,285 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
+      "name": "[format('naming-convention-security-{0}', parameters('deploymentNameSuffix'))]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "delimiter": {
+            "value": "-"
+          },
+          "environmentAbbreviation": {
+            "value": "[parameters('environmentAbbreviation')]"
+          },
+          "identifier": {
+            "value": "[parameters('identifier')]"
+          },
+          "locationAbbreviation": {
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.locationProperties.value.abbreviation]"
+          },
+          "networkName": {
+            "value": "security"
+          },
+          "resourceAbbreviations": {
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceAbbreviations.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "11684708945930884183"
+            }
+          },
+          "parameters": {
+            "delimiter": {
+              "type": "string",
+              "allowedValues": [
+                "",
+                "-"
+              ]
+            },
+            "environmentAbbreviation": {
+              "type": "string"
+            },
+            "identifier": {
+              "type": "string"
+            },
+            "locationAbbreviation": {
+              "type": "string"
+            },
+            "networkName": {
+              "type": "string"
+            },
+            "resourceAbbreviations": {
+              "type": "object"
+            },
+            "stampIndex": {
+              "type": "string",
+              "defaultValue": ""
+            }
+          },
+          "variables": {
+            "tokens": {
+              "resource": "resource_token",
+              "service": "service_token"
+            },
+            "namingConvention": "[format('{0}{1}{2}{3}{4}{5}{6}{7}{8}{9}', toLower(parameters('identifier')), parameters('delimiter'), parameters('environmentAbbreviation'), parameters('delimiter'), parameters('locationAbbreviation'), parameters('delimiter'), parameters('networkName'), parameters('delimiter'), variables('tokens').resource, if(empty(parameters('stampIndex')), '', format('{0}{1}', parameters('delimiter'), parameters('stampIndex'))))]",
+            "namingConvention_Service": "[format('{0}{1}{2}{3}{4}{5}{6}{7}{8}{9}{10}{11}', toLower(parameters('identifier')), parameters('delimiter'), parameters('environmentAbbreviation'), parameters('delimiter'), parameters('locationAbbreviation'), parameters('delimiter'), parameters('networkName'), parameters('delimiter'), variables('tokens').service, parameters('delimiter'), variables('tokens').resource, if(empty(parameters('stampIndex')), '', format('{0}{1}', parameters('delimiter'), parameters('stampIndex'))))]",
+            "names": {
+              "actionGroup": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').actionGroups)]",
+              "applicationGroup": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').applicationGroups)]",
+              "applicationInsights": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').applicationInsights)]",
+              "appServicePlan": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').appServicePlans)]",
+              "automationAccount": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').automationAccounts)]",
+              "automationAccountDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').automationAccounts)]",
+              "automationAccountNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, parameters('resourceAbbreviations').automationAccounts)]",
+              "automationAccountPrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, parameters('resourceAbbreviations').automationAccounts)]",
+              "availabilitySet": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').availabilitySets)]",
+              "azureFirewall": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').azureFirewalls)]",
+              "azureFirewallPublicIPAddress": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').publicIPAddresses), variables('tokens').service, parameters('resourceAbbreviations').azureFirewalls)]",
+              "azureFirewallPublicIPAddressDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, format('{0}{1}{2}', parameters('resourceAbbreviations').publicIPAddresses, parameters('delimiter'), parameters('resourceAbbreviations').azureFirewalls))]",
+              "azureFirewallDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').azureFirewalls)]",
+              "azureFirewallPolicy": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').firewallPolicies)]",
+              "applicationGateway": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').applicationGateways)]",
+              "applicationGatewayPublicIPAddress": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').publicIPAddresses), variables('tokens').service, parameters('resourceAbbreviations').applicationGateways)]",
+              "applicationGatewayDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').applicationGateways)]",
+              "applicationGatewayWafPolicy": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').applicationGatewayWafPolicies)]",
+              "applicationGatewayWafPolicyDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').applicationGatewayWafPolicies)]",
+              "applicationGatewayRouteTable": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').routeTables), variables('tokens').service, parameters('resourceAbbreviations').applicationGateways)]",
+              "applicationGatewayNetworkSecurityGroup": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkSecurityGroups), variables('tokens').service, parameters('resourceAbbreviations').applicationGateways)]",
+              "bastionHost": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').bastionHosts)]",
+              "bastionHostDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').bastionHosts)]",
+              "bastionHostNetworkSecurityGroup": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkSecurityGroups), variables('tokens').service, parameters('resourceAbbreviations').bastionHosts)]",
+              "bastionHostNetworkSecurityGroupDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, format('{0}{1}{2}', parameters('resourceAbbreviations').networkSecurityGroups, parameters('delimiter'), parameters('resourceAbbreviations').bastionHosts))]",
+              "bastionHostPublicIPAddress": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').publicIPAddresses), variables('tokens').service, parameters('resourceAbbreviations').bastionHosts)]",
+              "bastionHostPublicIPAddressDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, format('{0}{1}{2}', parameters('resourceAbbreviations').publicIPAddresses, parameters('delimiter'), parameters('resourceAbbreviations').bastionHosts))]",
+              "computeGallery": "[replace(replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').computeGallieries), parameters('delimiter'), if(empty(parameters('delimiter')), '', '_'))]",
+              "dataCollectionEndpoint": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').dataCollectionEndpoints)]",
+              "dataCollectionRuleAssociation": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').dataCollectionRuleAssociations)]",
+              "dataCollectionRule": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').dataCollectionRules)]",
+              "diskAccess": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').diskAccesses)]",
+              "diskAccessNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, parameters('resourceAbbreviations').diskAccesses)]",
+              "diskAccessPrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, parameters('resourceAbbreviations').diskAccesses)]",
+              "diskEncryptionSet": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').diskEncryptionSets)]",
+              "functionApp": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').functionApps)]",
+              "functionAppNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, parameters('resourceAbbreviations').functionApps)]",
+              "functionAppPrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, parameters('resourceAbbreviations').functionApps)]",
+              "hostPool": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').hostPools)]",
+              "hostPoolDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').hostPools)]",
+              "hostPoolNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, parameters('resourceAbbreviations').hostPools)]",
+              "hostPoolPrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, parameters('resourceAbbreviations').hostPools)]",
+              "keyVault": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').keyVaults)]",
+              "keyVaultDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').keyVaults)]",
+              "keyVaultNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, parameters('resourceAbbreviations').keyVaults)]",
+              "keyVaultPrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, parameters('resourceAbbreviations').keyVaults)]",
+              "localNetworkGateway": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').localNetworkGateways)]",
+              "logAnalyticsWorkspace": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').logAnalyticsWorkspaces)]",
+              "logAnalyticsWorkspaceDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').logAnalyticsWorkspaces)]",
+              "natGateway": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').natGateways)]",
+              "natGatewayPublicIPPrefix": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').publicIPPrefixes), variables('tokens').service, parameters('resourceAbbreviations').natGateways)]",
+              "netAppAccount": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').netAppAccounts)]",
+              "netAppAccountCapacityPool": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').netAppAccountsCapacityPools), variables('tokens').service, parameters('resourceAbbreviations').netAppAccounts)]",
+              "netAppAccountSmbServer": "[replace(replace(replace(replace(variables('namingConvention'), variables('tokens').resource, ''), parameters('environmentAbbreviation'), first(parameters('environmentAbbreviation'))), parameters('networkName'), ''), parameters('delimiter'), '')]",
+              "networkSecurityGroup": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').networkSecurityGroups)]",
+              "networkSecurityGroupDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').networkSecurityGroups)]",
+              "networkWatcherFlowLogsNetworkSecurityGroup": "[replace(variables('namingConvention'), variables('tokens').resource, format('{0}{1}{2}{3}{4}', parameters('resourceAbbreviations').networkWatchers, parameters('delimiter'), parameters('resourceAbbreviations').networkWatchersFlowLogs, parameters('delimiter'), parameters('resourceAbbreviations').networkSecurityGroups))]",
+              "networkWatcherFlowLogsVirtualNetwork": "[replace(variables('namingConvention'), variables('tokens').resource, format('{0}{1}{2}{3}{4}', parameters('resourceAbbreviations').networkWatchers, parameters('delimiter'), parameters('resourceAbbreviations').networkWatchersFlowLogs, parameters('delimiter'), parameters('resourceAbbreviations').virtualNetworks))]",
+              "privateLinkScope": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').privateLinkScopes)]",
+              "privateLinkScopeNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, parameters('resourceAbbreviations').privateLinkScopes)]",
+              "privateLinkScopePrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, parameters('resourceAbbreviations').privateLinkScopes)]",
+              "recoveryServicesVault": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').recoveryServicesVaults)]",
+              "recoveryServicesVaultNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, parameters('resourceAbbreviations').recoveryServicesVaults)]",
+              "recoveryServicesVaultPrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, parameters('resourceAbbreviations').recoveryServicesVaults)]",
+              "resourceGroup": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').resourceGroups)]",
+              "routeTable": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').routeTables)]",
+              "scalingPlan": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').scalingPlans)]",
+              "scalingPlanDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').scalingPlans)]",
+              "storageAccount": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').storageAccounts)]",
+              "storageAccountBlobDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, format('{0}{1}blob', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountBlobNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, format('{0}{1}blob', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountBlobPrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, format('{0}{1}blob', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountFileDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, format('{0}{1}file', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountFileNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, format('{0}{1}file', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountFilePrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, format('{0}{1}file', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountQueueDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, format('{0}{1}queue', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountQueueNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, format('{0}{1}queue', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountQueuePrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, format('{0}{1}queue', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountTableDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, format('{0}{1}table', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountTableNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, format('{0}{1}table', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "storageAccountTablePrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, format('{0}{1}table', parameters('resourceAbbreviations').storageAccounts, parameters('delimiter')))]",
+              "subnet": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').subnets)]",
+              "userAssignedIdentity": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').userAssignedIdentities)]",
+              "virtualMachine": "[replace(replace(replace(replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').virtualMachines), parameters('environmentAbbreviation'), first(parameters('environmentAbbreviation'))), parameters('networkName'), ''), parameters('delimiter'), '')]",
+              "virtualMachineDisk": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').disks), variables('tokens').service, format('{0}', parameters('resourceAbbreviations').virtualMachines))]",
+              "virtualMachineNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, parameters('resourceAbbreviations').virtualMachines)]",
+              "virtualMachineNetworkInterfaceDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, format('{0}{1}{2}', parameters('resourceAbbreviations').networkInterfaces, parameters('delimiter'), parameters('resourceAbbreviations').virtualMachines))]",
+              "virtualNetwork": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').virtualNetworks)]",
+              "virtualNetworkDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').virtualNetworks)]",
+              "virtualNetworkGateway": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').virtualNetworkGateways)]",
+              "virtualNetworkGatewayPublicIpAddress": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').publicIPAddresses), variables('tokens').service, parameters('resourceAbbreviations').virtualNetworkGateways)]",
+              "workspace": "[replace(variables('namingConvention'), variables('tokens').resource, parameters('resourceAbbreviations').workspaces)]",
+              "workspaceDiagnosticSetting": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').diagnosticSettings), variables('tokens').service, parameters('resourceAbbreviations').workspaces)]",
+              "workspaceNetworkInterface": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').networkInterfaces), variables('tokens').service, parameters('resourceAbbreviations').workspaces)]",
+              "workspacePrivateEndpoint": "[replace(replace(variables('namingConvention_Service'), variables('tokens').resource, parameters('resourceAbbreviations').privateEndpoints), variables('tokens').service, parameters('resourceAbbreviations').workspaces)]"
+            }
+          },
+          "resources": [],
+          "outputs": {
+            "names": {
+              "type": "object",
+              "value": "[variables('names')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('deploy-rg-security-{0}', parameters('deploymentNameSuffix'))]",
+      "subscriptionId": "[parameters('operationsSubscriptionId')]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "enabled": {
+            "value": "[parameters('deploySentinel')]"
+          },
+          "mlzTags": {
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.mlzTags.value]"
+          },
+          "name": "[if(empty(parameters('sentinelResourceGroupName')), createObject('value', reference(subscriptionResourceId('Microsoft.Resources/deployments', format('naming-convention-security-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.names.value.resourceGroup), createObject('value', parameters('sentinelResourceGroupName')))]",
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "16171546671354318095"
+            }
+          },
+          "parameters": {
+            "enabled": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "When false, skips creating the resource group and returns empty outputs."
+              }
+            },
+            "mlzTags": {
+              "type": "object"
+            },
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            }
+          },
+          "resources": [
+            {
+              "condition": "[parameters('enabled')]",
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2019-05-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[union(coalesce(tryGet(parameters('tags'), 'Microsoft.Resources/resourceGroups'), createObject()), parameters('mlzTags'))]"
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[coalesce(if(parameters('enabled'), subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), null()), '')]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[coalesce(if(parameters('enabled'), parameters('name'), null()), '')]"
+            },
+            "location": {
+              "type": "string",
+              "value": "[coalesce(tryGet(if(parameters('enabled'), reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full'), null()), 'location'), '')]"
+            },
+            "tags": {
+              "type": "object",
+              "value": "[coalesce(tryGet(if(parameters('enabled'), reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full'), null()), 'tags'), createObject())]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]",
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('naming-convention-security-{0}', parameters('deploymentNameSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "[format('deploy-monitoring-{0}', parameters('deploymentNameSuffix'))]",
       "location": "[deployment().location]",
       "properties": {
@@ -4732,18 +4941,8 @@
           "deploySentinel": {
             "value": "[parameters('deploySentinel')]"
           },
-          "enableAzureActivityConnector": {
-            "value": "[parameters('enableAzureActivityDataConnector')]"
-          },
-          "azureActivityDiagnosticSettingName": {
-            "value": "[parameters('azureActivityDiagnosticSettingName')]"
-          },
-          "azureActivityLogCategories": {
-            "value": "[parameters('azureActivityLogCategories')]"
-          },
-          "azureActivityRetentionPolicy": {
-            "value": "[parameters('azureActivityDiagnosticRetentionPolicy')]"
-          },
+          "securityResourceGroupName": "[if(parameters('deploySentinel'), if(empty(parameters('sentinelResourceGroupName')), createObject('value', reference(subscriptionResourceId('Microsoft.Resources/deployments', format('naming-convention-security-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.names.value.resourceGroup), createObject('value', parameters('sentinelResourceGroupName'))), createObject('value', ''))]",
+          "securityNamingConvention": "[if(parameters('deploySentinel'), createObject('value', reference(subscriptionResourceId('Microsoft.Resources/deployments', format('naming-convention-security-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.names.value), createObject('value', createObject()))]",
           "enableEntityBehavior": {
             "value": "[parameters('enableEntityBehavior')]"
           },
@@ -4792,21 +4991,6 @@
           "mlzTags": {
             "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.mlzTags.value]"
           },
-          "identifier": {
-            "value": "[parameters('identifier')]"
-          },
-          "environmentAbbreviation": {
-            "value": "[parameters('environmentAbbreviation')]"
-          },
-          "locationAbbreviation": {
-            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.locationProperties.value.abbreviation]"
-          },
-          "delimiter": {
-            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.delimiter.value]"
-          },
-          "resourceAbbreviations": {
-            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceAbbreviations.value]"
-          },
           "tenantId": {
             "value": "[variables('deploymentTenantId')]"
           },
@@ -4824,7 +5008,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "2201615181212128210"
+              "templateHash": "9584882817448206416"
             }
           },
           "parameters": {
@@ -4833,33 +5017,6 @@
             },
             "deploySentinel": {
               "type": "bool"
-            },
-            "identifier": {
-              "type": "string"
-            },
-            "environmentAbbreviation": {
-              "type": "string"
-            },
-            "locationAbbreviation": {
-              "type": "string"
-            },
-            "delimiter": {
-              "type": "string"
-            },
-            "resourceAbbreviations": {
-              "type": "object"
-            },
-            "enableAzureActivityConnector": {
-              "type": "bool"
-            },
-            "azureActivityDiagnosticSettingName": {
-              "type": "string"
-            },
-            "azureActivityLogCategories": {
-              "type": "array"
-            },
-            "azureActivityRetentionPolicy": {
-              "type": "object"
             },
             "enableEntityBehavior": {
               "type": "bool"
@@ -4921,85 +5078,28 @@
             },
             "tier": {
               "type": "object"
+            },
+            "securityResourceGroupName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "securityNamingConvention": {
+              "type": "object",
+              "defaultValue": {}
             }
           },
           "variables": {
-            "resourceToken": "resource_token",
-            "securityNamingConvention": "[format('{0}{1}{2}{1}{3}{1}security{1}{4}', toLower(parameters('identifier')), parameters('delimiter'), parameters('environmentAbbreviation'), parameters('locationAbbreviation'), variables('resourceToken'))]",
-            "securityResourceGroupName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').resourceGroups)]",
-            "securityLogAnalyticsWorkspaceName": "[replace(variables('securityNamingConvention'), variables('resourceToken'), parameters('resourceAbbreviations').logAnalyticsWorkspaces)]",
-            "monitoringResourceGroupName": "[if(parameters('deploySentinel'), variables('securityResourceGroupName'), parameters('tier').resourceGroupName)]",
-            "logAnalyticsWorkspaceName": "[if(parameters('deploySentinel'), variables('securityLogAnalyticsWorkspaceName'), parameters('tier').namingConvention.logAnalyticsWorkspace)]"
+            "targetResourceGroupName": "[if(not(empty(parameters('securityResourceGroupName'))), parameters('securityResourceGroupName'), parameters('tier').resourceGroupName)]",
+            "targetWorkspaceName": "[if(not(empty(parameters('securityNamingConvention'))), parameters('securityNamingConvention').logAnalyticsWorkspace, parameters('tier').namingConvention.logAnalyticsWorkspace)]",
+            "targetPrivateLinkScopeName": "[if(not(empty(parameters('securityNamingConvention'))), parameters('securityNamingConvention').privateLinkScope, parameters('tier').namingConvention.privateLinkScope)]"
           },
           "resources": [
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
-              "name": "[format('ensure-monitoring-rg-{0}', parameters('deploymentNameSuffix'))]",
-              "subscriptionId": "[parameters('tier').subscriptionId]",
-              "location": "[deployment().location]",
-              "properties": {
-                "expressionEvaluationOptions": {
-                  "scope": "inner"
-                },
-                "mode": "Incremental",
-                "parameters": {
-                  "mlzTags": {
-                    "value": "[parameters('mlzTags')]"
-                  },
-                  "name": {
-                    "value": "[variables('monitoringResourceGroupName')]"
-                  },
-                  "location": {
-                    "value": "[parameters('location')]"
-                  },
-                  "tags": {
-                    "value": "[parameters('tags')]"
-                  }
-                },
-                "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
-                  "contentVersion": "1.0.0.0",
-                  "metadata": {
-                    "_generator": {
-                      "name": "bicep",
-                      "version": "0.39.26.7824",
-                      "templateHash": "11280921715033613511"
-                    }
-                  },
-                  "parameters": {
-                    "mlzTags": {
-                      "type": "object"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "location": {
-                      "type": "string"
-                    },
-                    "tags": {
-                      "type": "object",
-                      "defaultValue": {}
-                    }
-                  },
-                  "resources": [
-                    {
-                      "type": "Microsoft.Resources/resourceGroups",
-                      "apiVersion": "2019-05-01",
-                      "name": "[parameters('name')]",
-                      "location": "[parameters('location')]",
-                      "tags": "[union(coalesce(tryGet(parameters('tags'), 'Microsoft.Resources/resourceGroups'), createObject()), parameters('mlzTags'))]"
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2025-04-01",
               "name": "[format('deploy-law-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[variables('monitoringResourceGroupName')]",
+              "resourceGroup": "[variables('targetResourceGroupName')]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -5016,7 +5116,7 @@
                     "value": "[parameters('mlzTags')]"
                   },
                   "name": {
-                    "value": "[variables('logAnalyticsWorkspaceName')]"
+                    "value": "[variables('targetWorkspaceName')]"
                   },
                   "retentionInDays": {
                     "value": "[parameters('logAnalyticsWorkspaceRetentionInDays')]"
@@ -5188,17 +5288,13 @@
                   }
                 }
               }
-              ,
-              "dependsOn": [
-                "[subscriptionResourceId(parameters('tier').subscriptionId, 'Microsoft.Resources/deployments', format('ensure-monitoring-rg-{0}', parameters('deploymentNameSuffix')))]"
-              ]
             },
             {
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[variables('monitoringResourceGroupName')]",
+              "resourceGroup": "[variables('targetResourceGroupName')]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -5206,10 +5302,10 @@
                 "mode": "Incremental",
                 "parameters": {
                   "logAnalyticsWorkspaceResourceId": {
-                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
                   },
                   "name": {
-                    "value": "[parameters('tier').namingConvention.privateLinkScope]"
+                    "value": "[variables('targetPrivateLinkScopeName')]"
                   }
                 },
                 "template": {
@@ -5264,7 +5360,7 @@
                 }
               },
               "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
               ]
             },
             {
@@ -5272,7 +5368,7 @@
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-private-endpoint-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[variables('monitoringResourceGroupName')]",
+              "resourceGroup": "[parameters('tier').resourceGroupName]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -5331,7 +5427,7 @@
                     ]
                   },
                   "privateLinkServiceId": {
-                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
                   },
                   "subnetResourceId": {
                     "value": "[parameters('tier').subnetResourceId]"
@@ -5423,7 +5519,7 @@
                 }
               },
               "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix')))]"
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix')))]"
               ]
             },
             {
@@ -5432,7 +5528,7 @@
               "apiVersion": "2025-04-01",
               "name": "[format('configure-sentinel-settings-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[variables('monitoringResourceGroupName')]",
+              "resourceGroup": "[variables('targetResourceGroupName')]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -5440,7 +5536,7 @@
                 "mode": "Incremental",
                 "parameters": {
                   "workspaceName": {
-                    "value": "[variables('logAnalyticsWorkspaceName')]"
+                    "value": "[variables('targetWorkspaceName')]"
                   },
                   "location": {
                     "value": "[parameters('location')]"
@@ -5480,7 +5576,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "14101792930626334175"
+                      "templateHash": "16148580182341068224"
                     }
                   },
                   "parameters": {
@@ -5498,35 +5594,35 @@
                     },
                     "enableEntityBehavior": {
                       "type": "bool",
-                      "defaultValue": false,
+                      "defaultValue": true,
                       "metadata": {
                         "description": "Toggle to configure the Entity Behavior Analytics setting."
                       }
                     },
                     "deployEntityBehaviorSetting": {
                       "type": "bool",
-                      "defaultValue": false,
+                      "defaultValue": true,
                       "metadata": {
                         "description": "Skip provisioning the Entity Behavior Analytics setting when it already exists to avoid concurrency conflicts."
                       }
                     },
                     "useEntityBehaviorScript": {
                       "type": "bool",
-                      "defaultValue": false,
+                      "defaultValue": true,
                       "metadata": {
                         "description": "Use the deployment script (recommended when the setting already exists) to upsert Entity Behavior. Disable for brand new workspaces to provision the resource directly."
                       }
                     },
                     "enableUeba": {
                       "type": "bool",
-                      "defaultValue": false,
+                      "defaultValue": true,
                       "metadata": {
                         "description": "Toggle to configure UEBA data sources and ensure they participate in the ML fusion models."
                       }
                     },
                     "deployUebaSetting": {
                       "type": "bool",
-                      "defaultValue": false,
+                      "defaultValue": true,
                       "metadata": {
                         "description": "Skip provisioning the UEBA setting when it already exists to avoid concurrency conflicts."
                       }
@@ -5558,7 +5654,7 @@
                     },
                     "deploySentinelAutomationScript": {
                       "type": "bool",
-                      "defaultValue": false,
+                      "defaultValue": true,
                       "metadata": {
                         "description": "Toggle to run the deployment script that discovers and assigns the Sentinel automation service principal. Disable when you plan to handle the automation role manually later."
                       }
@@ -5568,12 +5664,11 @@
                     "sentinelAutomationContributorRoleDefinitionGuid": "f4c81013-99ee-4d62-a7ee-b3f1f648599a",
                     "workspaceContributorRoleDefinitionGuid": "b24988ac-6180-42a0-ab88-20f7382dd24c",
                     "shouldRunAutomationScript": "[parameters('deploySentinelAutomationScript')]",
-                    "shouldConfigureEntitySetting": "[and(parameters('enableEntityBehavior'), parameters('deployEntityBehaviorSetting'))]",
-                    "shouldDeployEntitySettingDirect": false,
+                    "shouldConfigureEntitySetting": "[and(and(parameters('enableEntityBehavior'), parameters('deployEntityBehaviorSetting')), or(parameters('useEntityBehaviorScript'), not(parameters('useEntityBehaviorScript'))))]",
+                    "shouldConfigureUebaSetting": "[and(parameters('enableUeba'), parameters('deployUebaSetting'))]",
+                    "shouldConfigureAnomaliesSetting": "[parameters('enableAnomalies')]",
                     "entityBehaviorSettingResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')]",
                     "entityBehaviorSettingPayload": "[string(createObject('kind', 'EntityAnalytics', 'properties', createObject('entityProviders', createArray('AzureActiveDirectory'))))]",
-                    "shouldConfigureUebaSetting": "[and(and(parameters('enableUeba'), parameters('deployUebaSetting')), variables('shouldConfigureEntitySetting'))]",
-                    "shouldConfigureAnomaliesSetting": "[parameters('enableAnomalies')]",
                     "uebaSettingResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'Ueba')]",
                     "uebaSettingPayload": "[string(createObject('kind', 'Ueba', 'properties', createObject('dataSources', parameters('uebaDataSources'))))]",
                     "anomaliesSettingResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'Anomalies')]",
@@ -5691,7 +5786,7 @@
                             "value": "[variables('entityBehaviorSettingPayload')]"
                           }
                         ],
-                        "scriptContent": "      set -uo pipefail\r\n\r\n      resourceId=\"$ENTITY_SETTING_ID\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n      payload=\"$ENTITY_SETTING_PAYLOAD\"\r\n\r\n      etag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$etag\" ]; then\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\r\n      else\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\r\n      fi\r\n\r\n      if [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\r\n        if echo \"$response\" | grep -q \"Only 'Security Administrator' and 'Global Administrator'\"; then\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        echo \"$response\" >&2\r\n        exit ${rc:-1}\r\n      fi\r\n    "
+                        "scriptContent": "      set -uo pipefail\r\n\r\n      resourceId=\"$ENTITY_SETTING_ID\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n      \r\n      # Write payload to file to avoid shell escaping issues\r\n      echo \"$ENTITY_SETTING_PAYLOAD\" > /tmp/payload.json\r\n\r\n      etag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$etag\" ]; then\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?\r\n      else\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?\r\n      fi\r\n\r\n      if [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\r\n        if echo \"$response\" | grep -q \"Only 'Security Administrator' and 'Global Administrator'\"; then\r\n          echo \"INFO: Entity Analytics setting requires Global Administrator or Security Administrator role.\" >&2\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, setting changes may be blocked.\r\n        if echo \"$response\" | grep -qi \"changes.*disabled\\|primary.*workspace\\|threat protection portal\"; then\r\n          echo \"INFO: Entity Analytics setting is managed by the primary workspace (Microsoft Threat Protection).\" >&2\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        echo \"ERROR: Failed to configure Entity Analytics setting\" >&2\r\n        echo \"$response\" >&2\r\n        exit ${rc:-1}\r\n      fi\r\n\r\n      echo \"SUCCESS: Entity Analytics setting configured\" >&2\r\n      echo '{\"status\":\"configured\"}' > $AZ_SCRIPTS_OUTPUT_PATH\r\n    "
                       },
                       "dependsOn": [
                         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]",
@@ -5728,7 +5823,7 @@
                             "value": "[variables('uebaSettingPayload')]"
                           }
                         ],
-                        "scriptContent": "      set -uo pipefail\r\n\r\n      resourceId=\"$UEBA_SETTING_ID\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n      payload=\"$UEBA_SETTING_PAYLOAD\"\r\n\r\n      etag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$etag\" ]; then\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\r\n      else\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\r\n      fi\r\n\r\n      if [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\r\n        if echo \"$response\" | grep -q \"requires 'EntityAnalytics' to be enabled\"; then\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        if echo \"$response\" | grep -q \"Only 'Security Administrator' and 'Global Administrator'\"; then\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        echo \"$response\" >&2\r\n        exit ${rc:-1}\r\n      fi\r\n    "
+                        "scriptContent": "      set -uo pipefail\r\n\r\n      resourceId=\"$UEBA_SETTING_ID\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n      \r\n      # Write payload to file to avoid shell escaping issues\r\n      echo \"$UEBA_SETTING_PAYLOAD\" > /tmp/payload.json\r\n\r\n      etag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$etag\" ]; then\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?\r\n      else\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?\r\n      fi\r\n\r\n      if [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\r\n        if echo \"$response\" | grep -q \"requires 'EntityAnalytics' to be enabled\"; then\r\n          echo \"INFO: UEBA requires Entity Analytics to be enabled first.\" >&2\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        if echo \"$response\" | grep -q \"Only 'Security Administrator' and 'Global Administrator'\"; then\r\n          echo \"INFO: UEBA setting requires Global Administrator or Security Administrator role.\" >&2\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, setting changes may be blocked.\r\n        if echo \"$response\" | grep -qi \"changes.*disabled\\|primary.*workspace\\|threat protection portal\"; then\r\n          echo \"INFO: UEBA setting is managed by the primary workspace (Microsoft Threat Protection).\" >&2\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        echo \"ERROR: Failed to configure UEBA setting\" >&2\r\n        echo \"$response\" >&2\r\n        exit ${rc:-1}\r\n      fi\r\n\r\n      echo \"SUCCESS: UEBA setting configured\" >&2\r\n      echo '{\"status\":\"configured\"}' > $AZ_SCRIPTS_OUTPUT_PATH\r\n    "
                       },
                       "dependsOn": [
                         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]",
@@ -5764,7 +5859,7 @@
                             "value": "[variables('anomaliesSettingPayload')]"
                           }
                         ],
-                        "scriptContent": "      set -uo pipefail\r\n\r\n      resourceId=\"$ANOMALIES_SETTING_ID\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n      payload=\"$ANOMALIES_SETTING_PAYLOAD\"\r\n\r\n      etag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$etag\" ]; then\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\r\n      else\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\r\n      fi\r\n\r\n      if [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\r\n        if echo \"$response\" | grep -q \"Only 'Security Administrator' and 'Global Administrator'\"; then\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        echo \"$response\" >&2\r\n        exit ${rc:-1}\r\n      fi\r\n    "
+                        "scriptContent": "      set -uo pipefail\r\n\r\n      resourceId=\"$ANOMALIES_SETTING_ID\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n      \r\n      # Write payload to file to avoid shell escaping issues\r\n      echo \"$ANOMALIES_SETTING_PAYLOAD\" > /tmp/payload.json\r\n\r\n      etag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$etag\" ]; then\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?\r\n      else\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?\r\n      fi\r\n\r\n      if [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\r\n        if echo \"$response\" | grep -q \"Only 'Security Administrator' and 'Global Administrator'\"; then\r\n          echo \"INFO: Anomalies setting requires Global Administrator or Security Administrator role.\" >&2\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, setting changes may be blocked.\r\n        if echo \"$response\" | grep -qi \"changes.*disabled\\|primary.*workspace\\|threat protection portal\"; then\r\n          echo \"INFO: Anomalies setting is managed by the primary workspace (Microsoft Threat Protection).\" >&2\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        echo \"ERROR: Failed to configure Anomalies setting\" >&2\r\n        echo \"$response\" >&2\r\n        exit ${rc:-1}\r\n      fi\r\n\r\n      echo \"SUCCESS: Anomalies setting configured\" >&2\r\n      echo '{\"status\":\"configured\"}' > $AZ_SCRIPTS_OUTPUT_PATH\r\n    "
                       },
                       "dependsOn": [
                         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]",
@@ -5782,115 +5877,7 @@
                 }
               },
               "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
-              ]
-            },
-            {
-              "condition": "[and(parameters('deploySentinel'), parameters('enableAzureActivityConnector'))]",
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2025-04-01",
-              "name": "[format('configure-azure-activity-diagnostics-{0}', parameters('deploymentNameSuffix'))]",
-              "location": "[deployment().location]",
-              "properties": {
-                "expressionEvaluationOptions": {
-                  "scope": "inner"
-                },
-                "mode": "Incremental",
-                "parameters": {
-                  "diagnosticSettingName": {
-                    "value": "[parameters('azureActivityDiagnosticSettingName')]"
-                  },
-                  "workspaceResourceId": {
-                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
-                  },
-                  "logCategories": {
-                    "value": "[parameters('azureActivityLogCategories')]"
-                  },
-                  "retentionPolicy": {
-                    "value": "[parameters('azureActivityRetentionPolicy')]"
-                  }
-                },
-                "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
-                  "contentVersion": "1.0.0.0",
-                  "metadata": {
-                    "_generator": {
-                      "name": "bicep",
-                      "version": "0.39.26.7824",
-                      "templateHash": "1449698270905582576"
-                    }
-                  },
-                  "parameters": {
-                    "diagnosticSettingName": {
-                      "type": "string",
-                      "metadata": {
-                        "description": "Name of the diagnostic setting."
-                      }
-                    },
-                    "workspaceResourceId": {
-                      "type": "string",
-                      "metadata": {
-                        "description": "Resource ID of the Log Analytics workspace that will receive logs."
-                      }
-                    },
-                    "logCategories": {
-                      "type": "array",
-                      "defaultValue": [
-                        "Administrative",
-                        "Security",
-                        "ServiceHealth",
-                        "Alert",
-                        "Recommendation",
-                        "Policy",
-                        "Autoscale",
-                        "ResourceHealth"
-                      ],
-                      "metadata": {
-                        "description": "Log categories to enable on the diagnostic setting."
-                      }
-                    },
-                    "retentionPolicy": {
-                      "type": "object",
-                      "defaultValue": {
-                        "enabled": false,
-                        "days": 0
-                      },
-                      "metadata": {
-                        "description": "Optional retention policy applied per category (disabled by default)."
-                      }
-                    }
-                  },
-                  "resources": [
-                    {
-                      "type": "Microsoft.Insights/diagnosticSettings",
-                      "apiVersion": "2021-05-01-preview",
-                      "name": "[parameters('diagnosticSettingName')]",
-                      "properties": {
-                        "copy": [
-                          {
-                            "name": "logs",
-                            "count": "[length(parameters('logCategories'))]",
-                            "input": {
-                              "category": "[parameters('logCategories')[copyIndex('logs')]]",
-                              "enabled": true,
-                              "retentionPolicy": "[parameters('retentionPolicy')]"
-                            }
-                          }
-                        ],
-                        "workspaceId": "[parameters('workspaceResourceId')]"
-                      }
-                    }
-                  ],
-                  "outputs": {
-                    "diagnosticSettingId": {
-                      "type": "string",
-                      "value": "[subscriptionResourceId('Microsoft.Insights/diagnosticSettings', parameters('diagnosticSettingName'))]"
-                    }
-                  }
-                }
-              },
-              "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]"
               ]
             },
             {
@@ -5899,7 +5886,7 @@
               "apiVersion": "2025-04-01",
               "name": "[format('configure-sentinel-connectors-{0}', parameters('deploymentNameSuffix'))]",
               "subscriptionId": "[parameters('tier').subscriptionId]",
-              "resourceGroup": "[variables('monitoringResourceGroupName')]",
+              "resourceGroup": "[variables('targetResourceGroupName')]",
               "properties": {
                 "expressionEvaluationOptions": {
                   "scope": "inner"
@@ -5907,10 +5894,7 @@
                 "mode": "Incremental",
                 "parameters": {
                   "workspaceName": {
-                    "value": "[variables('logAnalyticsWorkspaceName')]"
-                  },
-                  "workspaceLocation": {
-                    "value": "[parameters('location')]"
+                    "value": "[variables('targetWorkspaceName')]"
                   },
                   "tenantId": {
                     "value": "[parameters('tenantId')]"
@@ -5926,7 +5910,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "14957794883613767246"
+                      "templateHash": "650748474717771421"
                     }
                   },
                   "parameters": {
@@ -5934,12 +5918,6 @@
                       "type": "string",
                       "metadata": {
                         "description": "Name of the Log Analytics workspace that hosts Microsoft Sentinel."
-                      }
-                    },
-                    "workspaceLocation": {
-                      "type": "string",
-                      "metadata": {
-                        "description": "Azure region for the Log Analytics workspace (used for connector 'location')."
                       }
                     },
                     "tenantId": {
@@ -6011,9 +5989,7 @@
                         "state": "[parameters('entraDataTypeStates').alerts]"
                       }
                     },
-                    "entraConnectorResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/dataConnectors', 'AzureActiveDirectory')]",
-                    "entraConnectorPayload": "[string(createObject('location', parameters('workspaceLocation'), 'kind', 'AzureActiveDirectory', 'properties', createObject('tenantId', parameters('tenantId'), 'dataTypes', variables('normalizedEntraDataTypes'))))]",
-                    "sentinelScriptIdentityResourceId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]"
+                    "entraConnectorResourceId": "[format('{0}/providers/Microsoft.SecurityInsights/dataConnectors/AzureActiveDirectory', resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')))]"
                   },
                   "resources": [
                     {
@@ -6022,12 +5998,18 @@
                       "name": "[format('configure-entra-connector-{0}', uniqueString(resourceGroup().id))]",
                       "location": "[resourceGroup().location]",
                       "kind": "AzureCLI",
+                      "identity": {
+                        "type": "UserAssigned",
+                        "userAssignedIdentities": {
+                          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id))))]": {}
+                        }
+                      },
                       "properties": {
                         "azCliVersion": "2.61.0",
                         "cleanupPreference": "OnExpiration",
                         "retentionInterval": "P1D",
                         "timeout": "PT10M",
-                        "forceUpdateTag": "[format('{0}-{1}', parameters('tenantId'), base64(variables('entraConnectorPayload')))]",
+                        "forceUpdateTag": "[format('{0}-{1}', parameters('tenantId'), base64(string(createObject('location', reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2022-10-01', 'full').location, 'kind', 'AzureActiveDirectory', 'properties', createObject('tenantId', parameters('tenantId'), 'dataTypes', variables('normalizedEntraDataTypes'))))))]",
                         "environmentVariables": [
                           {
                             "name": "ENTRA_CONNECTOR_ID",
@@ -6035,70 +6017,54 @@
                           },
                           {
                             "name": "ENTRA_CONNECTOR_PAYLOAD",
-                            "value": "[variables('entraConnectorPayload')]"
+                            "value": "[string(createObject('location', reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2022-10-01', 'full').location, 'kind', 'AzureActiveDirectory', 'properties', createObject('tenantId', parameters('tenantId'), 'dataTypes', variables('normalizedEntraDataTypes'))))]"
                           },
                           {
                             "name": "ENTRA_CONNECTOR_API_VERSION",
                             "value": "[parameters('connectorApiVersion')]"
                           }
                         ],
-                        "scriptContent": "set -uo pipefail\n\nresourceId=\"$ENTRA_CONNECTOR_ID\"\napiVersion=\"$ENTRA_CONNECTOR_API_VERSION\"\npayload=\"$ENTRA_CONNECTOR_PAYLOAD\"\n\netag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\n\nif [ -n \"$etag\" ]; then\n  response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\nelse\n  response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\nfi\n\nif [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\n  if echo \"$response\" | grep -qi \"already exists\"; then\n    echo \"$response\" >&2\n    exit 0\n  fi\n\n  # If the workspace is the Primary workspace in Microsoft 365 Defender, connector changes may be blocked in Sentinel.\n  if echo \"$response\" | grep -qi \"blocked\"; then\n    echo \"$response\" >&2\n    exit 0\n  fi\n\n  echo \"$response\" >&2\n  exit ${rc:-1}\nfi\n"
-                      },
-                      "identity": {
-                        "type": "UserAssigned",
-                        "userAssignedIdentities": {
-                          "[format('{0}', variables('sentinelScriptIdentityResourceId'))]": {}
-                        }
+                        "scriptContent": "      set -uo pipefail\r\n\r\n      resourceId=\"$ENTRA_CONNECTOR_ID\"\r\n      apiVersion=\"$ENTRA_CONNECTOR_API_VERSION\"\r\n      payload=\"$ENTRA_CONNECTOR_PAYLOAD\"\r\n\r\n      etag=$(az rest --method get --url \"$resourceId?api-version=$apiVersion\" --query etag -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$etag\" ]; then\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-Match=$etag\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\r\n      else\r\n        response=$(az rest --method put --headers \"Content-Type=application/json\" \"If-None-Match=*\" --url \"$resourceId?api-version=$apiVersion\" --body \"$payload\" --only-show-errors 2>&1) || rc=$?\r\n      fi\r\n\r\n      if [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\r\n        if echo \"$response\" | grep -qi \"already exists\"; then\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        # If the workspace is the Primary workspace in Microsoft 365 Defender, connector changes may be blocked in Sentinel.\r\n        if echo \"$response\" | grep -qi \"blocked\"; then\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        echo \"$response\" >&2\r\n        exit ${rc:-1}\r\n      fi\r\n    "
                       }
                     }
                   ]
                 }
               },
               "dependsOn": [
-                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('configure-sentinel-settings-{0}', parameters('deploymentNameSuffix')))]"
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('configure-sentinel-settings-{0}', parameters('deploymentNameSuffix')))]"
               ]
             }
           ],
           "outputs": {
             "logAnalyticsWorkspaceResourceId": {
               "type": "string",
-              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
             },
             "networkInterfaceResourceIds": {
               "type": "array",
               "value": [
-                "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-endpoint-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.networkInterfaceResourceId.value]"
+                "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, parameters('tier').resourceGroupName), 'Microsoft.Resources/deployments', format('deploy-private-endpoint-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.networkInterfaceResourceId.value]"
               ]
             },
             "privateLinkScopeResourceId": {
               "type": "string",
-              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('monitoringResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
-            },
-            "monitoringResourceGroupName": {
-              "type": "string",
-              "value": "[variables('monitoringResourceGroupName')]"
-            },
-            "logAnalyticsWorkspaceName": {
-              "type": "string",
-              "value": "[variables('logAnalyticsWorkspaceName')]"
-            },
-            "monitoringSubscriptionId": {
-              "type": "string",
-              "value": "[parameters('tier').subscriptionId]"
+              "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-private-link-scope-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
             }
           }
         }
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-security-rg-{0}', parameters('deploymentNameSuffix')))]"
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('naming-convention-security-{0}', parameters('deploymentNameSuffix')))]",
+        "[subscriptionResourceId(parameters('operationsSubscriptionId'), 'Microsoft.Resources/deployments', format('deploy-rg-security-{0}', parameters('deploymentNameSuffix')))]"
       ]
     },
     {
+      "condition": "[parameters('enableEntraDiagnostics')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
-      "name": "[format('deploy-security-rg-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[parameters('operationsSubscriptionId')]",
+      "name": "[format('deploy-entra-diagnostics-{0}', parameters('deploymentNameSuffix'))]",
+      "scope": "/",
       "location": "[deployment().location]",
       "properties": {
         "expressionEvaluationOptions": {
@@ -6106,63 +6072,105 @@
         },
         "mode": "Incremental",
         "parameters": {
-          "deploySentinel": {
-            "value": "[parameters('deploySentinel')]"
+          "diagnosticSettingName": {
+            "value": "[parameters('entraDiagnosticName')]"
           },
-          "mlzTags": {
-            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.mlzTags.value]"
+          "workspaceResourceId": {
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.logAnalyticsWorkspaceResourceId.value]"
           },
-          "name": {
-            "value": "[variables('securityResourceGroupName')]"
+          "logCategories": {
+            "value": "[parameters('entraLogCategories')]"
           },
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "tags": {
-            "value": "[parameters('tags')]"
+          "retentionPolicy": {
+            "value": "[parameters('entraRetentionPolicy')]"
           }
         },
         "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "$schema": "https://schema.management.azure.com/schemas/2019-08-01/tenantDeploymentTemplate.json#",
           "contentVersion": "1.0.0.0",
-          "parameters": {
-            "deploySentinel": {
-              "type": "bool"
-            },
-            "mlzTags": {
-              "type": "object"
-            },
-            "name": {
-              "type": "string"
-            },
-            "location": {
-              "type": "string"
-            },
-            "tags": {
-              "type": "object",
-              "defaultValue": {}
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "11640417297466333240"
             }
+          },
+          "parameters": {
+            "diagnosticSettingName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Microsoft Entra ID diagnostic setting."
+              }
+            },
+            "workspaceResourceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the Log Analytics workspace that will receive Entra logs."
+              }
+            },
+            "logCategories": {
+              "type": "array",
+              "defaultValue": [
+                "AuditLogs",
+                "SignInLogs",
+                "NonInteractiveUserSignInLogs",
+                "ServicePrincipalSignInLogs",
+                "ManagedIdentitySignInLogs",
+                "ProvisioningLogs",
+                "ADFSSignInLogs",
+                "RiskyUsers",
+                "RiskyServicePrincipals",
+                "UserRiskEvents"
+              ],
+              "metadata": {
+                "description": "Log categories to enable for Microsoft Entra ID export."
+              }
+            },
+            "retentionPolicy": {
+              "type": "object",
+              "defaultValue": {
+                "enabled": false,
+                "days": 0
+              },
+              "metadata": {
+                "description": "Optional retention policy applied per category (disabled by default)."
+              }
+            }
+          },
+          "variables": {
+            "copy": [
+              {
+                "name": "logConfigs",
+                "count": "[length(parameters('logCategories'))]",
+                "input": {
+                  "category": "[parameters('logCategories')[copyIndex('logConfigs')]]",
+                  "enabled": true,
+                  "retentionPolicy": "[parameters('retentionPolicy')]"
+                }
+              }
+            ]
           },
           "resources": [
             {
-              "condition": "[parameters('deploySentinel')]",
-              "type": "Microsoft.Resources/resourceGroups",
-              "apiVersion": "2019-05-01",
-              "name": "[parameters('name')]",
-              "location": "[parameters('location')]",
-              "tags": "[union(coalesce(tryGet(parameters('tags'), 'Microsoft.Resources/resourceGroups'), createObject()), parameters('mlzTags'))]"
+              "type": "microsoft.aadiam/diagnosticSettings",
+              "apiVersion": "2017-04-01-preview",
+              "name": "[parameters('diagnosticSettingName')]",
+              "properties": {
+                "workspaceId": "[parameters('workspaceResourceId')]",
+                "logs": "[variables('logConfigs')]"
+              }
             }
           ],
           "outputs": {
-            "name": {
+            "diagnosticSettingId": {
               "type": "string",
-              "value": "[parameters('name')]"
+              "value": "[tenantResourceId('microsoft.aadiam/diagnosticSettings', parameters('diagnosticSettingName'))]"
             }
           }
         }
       },
       "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]"
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]"
       ]
     },
     {
@@ -6181,19 +6189,16 @@
             "value": "[parameters('deploymentNameSuffix')]"
           },
           "workspaceName": {
-            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.logAnalyticsWorkspaceName.value]"
+            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('naming-convention-security-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.names.value.logAnalyticsWorkspace]"
           },
           "workspaceLocation": {
             "value": "[parameters('location')]"
           },
           "workspaceResourceGroupName": {
-            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.monitoringResourceGroupName.value]"
+            "value": "[reference(subscriptionResourceId(parameters('operationsSubscriptionId'), 'Microsoft.Resources/deployments', format('deploy-rg-security-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.name.value]"
           },
           "workspaceSubscriptionId": {
-            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.monitoringSubscriptionId.value]"
-          },
-          "templateBaseUri": {
-            "value": "[variables('templateBaseUri')]"
+            "value": "[filter(reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.tiers.value, lambda('tier', equals(lambdaVariables('tier').name, 'operations')))[0].subscriptionId]"
           },
           "azureActivityWorkbookName": {
             "value": "[parameters('azureActivityWorkbookName')]"
@@ -6247,13 +6252,6 @@
               "type": "string",
               "metadata": {
                 "description": "Subscription identifier that contains the Microsoft Sentinel workspace."
-              }
-            },
-            "templateBaseUri": {
-              "type": "string",
-              "defaultValue": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main",
-              "metadata": {
-                "description": "Base URI for raw access to this repository. Used to link nested workbook templates without embedding them."
               }
             },
             "azureActivityWorkbookName": {
@@ -10158,766 +10156,6 @@
                     }
                   ],
                   "outputs": {}
-                }
-              }
-            },
-            {
-              "condition": "[parameters('deployAzureActivitySolution')]",
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2025-04-01",
-              "name": "[format('deploy-workbook-azure-activity-{0}', parameters('deploymentNameSuffix'))]",
-              "subscriptionId": "[parameters('workspaceSubscriptionId')]",
-              "resourceGroup": "[parameters('workspaceResourceGroupName')]",
-              "properties": {
-                "expressionEvaluationOptions": {
-                  "scope": "inner"
-                },
-                "mode": "Incremental",
-                "parameters": {
-                  "workspaceResourceId": {
-                    "value": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.OperationalInsights/workspaces/{2}', parameters('workspaceSubscriptionId'), parameters('workspaceResourceGroupName'), parameters('workspaceName'))]"
-                  },
-                  "location": {
-                    "value": "[parameters('workspaceLocation')]"
-                  },
-                  "displayName": {
-                    "value": "[parameters('azureActivityWorkbookName')]"
-                  }
-                },
-                "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                  "contentVersion": "1.0.0.0",
-                  "parameters": {
-                    "workspaceResourceId": {
-                      "type": "string"
-                    },
-                    "location": {
-                      "type": "string"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "defaultValue": "Azure Activity"
-                    }
-                  },
-                  "variables": {
-                    "workbookId": "[guid(parameters('workspaceResourceId'), 'AzureActivity')]",
-                    "serializedData": {
-                      "version": "Notebook/1.0",
-                      "items": [
-                        {
-                          "type": 9,
-                          "content": {
-                            "version": "KqlParameterItem/1.0",
-                            "query": "",
-                            "crossComponentResources": [],
-                            "parameters": [
-                              {
-                                "id": "52bfbd84-1639-480c-bda5-bfc87fd81832",
-                                "version": "KqlParameterItem/1.0",
-                                "name": "TimeRange",
-                                "type": 4,
-                                "isRequired": true,
-                                "value": {
-                                  "durationMs": 604800000
-                                },
-                                "typeSettings": {
-                                  "selectableValues": [
-                                    {
-                                      "durationMs": 300000
-                                    },
-                                    {
-                                      "durationMs": 900000
-                                    },
-                                    {
-                                      "durationMs": 1800000
-                                    },
-                                    {
-                                      "durationMs": 3600000
-                                    },
-                                    {
-                                      "durationMs": 14400000
-                                    },
-                                    {
-                                      "durationMs": 43200000
-                                    },
-                                    {
-                                      "durationMs": 86400000
-                                    },
-                                    {
-                                      "durationMs": 172800000
-                                    },
-                                    {
-                                      "durationMs": 259200000
-                                    },
-                                    {
-                                      "durationMs": 604800000
-                                    },
-                                    {
-                                      "durationMs": 1209600000
-                                    },
-                                    {
-                                      "durationMs": 2419200000
-                                    },
-                                    {
-                                      "durationMs": 2592000000
-                                    },
-                                    {
-                                      "durationMs": 5184000000
-                                    },
-                                    {
-                                      "durationMs": 7776000000
-                                    }
-                                  ]
-                                }
-                              },
-                              {
-                                "id": "eeb5dcf9-e898-46af-9c12-d91d97e13cd3",
-                                "version": "KqlParameterItem/1.0",
-                                "name": "Caller",
-                                "type": 2,
-                                "isRequired": true,
-                                "multiSelect": true,
-                                "quote": "'",
-                                "delimiter": ",",
-                                "query": "AzureActivity\r\n| summarize by Caller",
-                                "value": [
-                                  "value::all"
-                                ],
-                                "typeSettings": {
-                                  "additionalResourceOptions": [
-                                    "value::all"
-                                  ],
-                                  "selectAllValue": "All"
-                                },
-                                "timeContext": {
-                                  "durationMs": 0
-                                },
-                                "timeContextFromParameter": "TimeRange",
-                                "queryType": 0,
-                                "resourceType": "microsoft.operationalinsights/workspaces"
-                              },
-                              {
-                                "id": "46375a76-7ae1-4d7e-9082-4191531198a9",
-                                "version": "KqlParameterItem/1.0",
-                                "name": "ResourceGroup",
-                                "type": 2,
-                                "isRequired": true,
-                                "multiSelect": true,
-                                "quote": "'",
-                                "delimiter": ",",
-                                "query": "AzureActivity\r\n| summarize by ResourceGroup",
-                                "value": [
-                                  "value::all"
-                                ],
-                                "typeSettings": {
-                                  "resourceTypeFilter": {
-                                    "microsoft.resources/resourcegroups": true
-                                  },
-                                  "additionalResourceOptions": [
-                                    "value::all"
-                                  ],
-                                  "selectAllValue": "All"
-                                },
-                                "timeContext": {
-                                  "durationMs": 0
-                                },
-                                "timeContextFromParameter": "TimeRange",
-                                "queryType": 0,
-                                "resourceType": "microsoft.operationalinsights/workspaces"
-                              }
-                            ],
-                            "style": "pills",
-                            "queryType": 0,
-                            "resourceType": "microsoft.operationalinsights/workspaces"
-                          },
-                          "name": "parameters - 2"
-                        },
-                        {
-                          "type": 3,
-                          "content": {
-                            "version": "KqlItem/1.0",
-                            "query": "let data = AzureActivity\r\n| where \"{Caller:lable}\" == \"All\" or \"{Caller:lable}\" == \"All\" or Caller in ({Caller})\r\n| where \"{ResourceGroup:lable}\" == \"All\" or \"{ResourceGroup:lable}\" == \"All\" or ResourceGroup in ({ResourceGroup});\r\ndata\r\n| summarize Count = count() by ResourceGroup\r\n| join kind = fullouter (datatable(ResourceGroup:string)['Medium', 'high', 'low']) on ResourceGroup\r\n| project ResourceGroup = iff(ResourceGroup == '', ResourceGroup1, ResourceGroup), Count = iff(ResourceGroup == '', 0, Count)\r\n| join kind = inner (data\r\n | make-series Trend = count() default = 0 on TimeGenerated from {TimeRange:start} to {TimeRange:end} step {TimeRange:grain} by ResourceGroup)\r\n on ResourceGroup\r\n| project-away ResourceGroup1, TimeGenerated\r\n| extend ResourceGroups = ResourceGroup\r\n| union (\r\n data \r\n | summarize Count = count() \r\n | extend jkey = 1\r\n | join kind=inner (data\r\n | make-series Trend = count() default = 0 on TimeGenerated from {TimeRange:start} to {TimeRange:end} step {TimeRange:grain}\r\n | extend jkey = 1) on jkey\r\n | extend ResourceGroup = 'All', ResourceGroups = '*' \r\n)\r\n| order by Count desc\r\n| take 10",
-                            "size": 4,
-                            "exportToExcelOptions": "visible",
-                            "title": "Top 10 active resource groups",
-                            "timeContext": {
-                              "durationMs": 0
-                            },
-                            "timeContextFromParameter": "TimeRange",
-                            "queryType": 0,
-                            "resourceType": "microsoft.operationalinsights/workspaces",
-                            "visualization": "tiles",
-                            "tileSettings": {
-                              "titleContent": {
-                                "columnMatch": "ResourceGroup",
-                                "formatter": 1,
-                                "formatOptions": {
-                                  "showIcon": true
-                                }
-                              },
-                              "leftContent": {
-                                "columnMatch": "Count",
-                                "formatter": 12,
-                                "formatOptions": {
-                                  "palette": "auto",
-                                  "showIcon": true
-                                },
-                                "numberFormat": {
-                                  "unit": 17,
-                                  "options": {
-                                    "maximumSignificantDigits": 3,
-                                    "maximumFractionDigits": 2
-                                  }
-                                }
-                              },
-                              "secondaryContent": {
-                                "columnMatch": "Trend",
-                                "formatter": 9,
-                                "formatOptions": {
-                                  "palette": "blueOrange",
-                                  "showIcon": true
-                                }
-                              },
-                              "showBorder": false
-                            }
-                          },
-                          "name": "query - 3"
-                        },
-                        {
-                          "type": 3,
-                          "content": {
-                            "version": "KqlItem/1.0",
-                            "query": "AzureActivity\r\n| where \"{Caller:lable}\" == \"All\" or Caller in ({Caller})\r\n| where \"{ResourceGroup:lable}\" == \"All\" or ResourceGroup in ({ResourceGroup})\r\n| summarize deletions = countif(OperationNameValue hassuffix \"delete\"), creations = countif(OperationNameValue hassuffix \"write\"), updates = countif(OperationNameValue hassuffix \"write\"), Activities = count(OperationNameValue) by bin_at(TimeGenerated, 1h, now())\r\n",
-                            "size": 0,
-                            "exportToExcelOptions": "visible",
-                            "title": "Activities over time",
-                            "color": "gray",
-                            "timeContext": {
-                              "durationMs": 0
-                            },
-                            "timeContextFromParameter": "TimeRange",
-                            "queryType": 0,
-                            "resourceType": "microsoft.operationalinsights/workspaces",
-                            "visualization": "linechart",
-                            "graphSettings": {
-                              "type": 0
-                            }
-                          },
-                          "name": "query - 1"
-                        },
-                        {
-                          "type": 3,
-                          "content": {
-                            "version": "KqlItem/1.0",
-                            "query": "AzureActivity\r\n| where \"{Caller:lable}\" == \"All\" or Caller in ({Caller})\r\n| where \"{ResourceGroup:lable}\" == \"All\" or ResourceGroup in ({ResourceGroup})\r\n| summarize deletions = countif(OperationNameValue hassuffix \"Delete\"), creations = countif(OperationNameValue hassuffix \"write\"), updates = countif(OperationNameValue hassuffix \"write\"), Activities = count() by Caller\r\n",
-                            "size": 1,
-                            "exportToExcelOptions": "visible",
-                            "title": "Caller activities",
-                            "timeContext": {
-                              "durationMs": 0
-                            },
-                            "timeContextFromParameter": "TimeRange",
-                            "queryType": 0,
-                            "resourceType": "microsoft.operationalinsights/workspaces",
-                            "gridSettings": {
-                              "formatters": [
-                                {
-                                  "columnMatch": "Caller",
-                                  "formatter": 0,
-                                  "formatOptions": {
-                                    "showIcon": true
-                                  }
-                                },
-                                {
-                                  "columnMatch": "deletions",
-                                  "formatter": 4,
-                                  "formatOptions": {
-                                    "showIcon": true,
-                                    "aggregation": "Count"
-                                  }
-                                },
-                                {
-                                  "columnMatch": "creations",
-                                  "formatter": 4,
-                                  "formatOptions": {
-                                    "palette": "purple",
-                                    "showIcon": true,
-                                    "aggregation": "Count"
-                                  }
-                                },
-                                {
-                                  "columnMatch": "updates",
-                                  "formatter": 4,
-                                  "formatOptions": {
-                                    "palette": "gray",
-                                    "showIcon": true,
-                                    "aggregation": "Count"
-                                  }
-                                },
-                                {
-                                  "columnMatch": "Activities",
-                                  "formatter": 4,
-                                  "formatOptions": {
-                                    "palette": "greenDark",
-                                    "linkTarget": "GenericDetails",
-                                    "linkIsContextBlade": true,
-                                    "showIcon": true,
-                                    "aggregation": "Count",
-                                    "workbookContext": {
-                                      "componentIdSource": "workbook",
-                                      "resourceIdsSource": "workbook",
-                                      "templateIdSource": "static",
-                                      "templateId": "https://go.microsoft.com/fwlink/?linkid=874159&resourceId=%2Fsubscriptions%2F44e4eff8-1fcb-4a22-a7d6-992ac7286382%2FresourceGroups%2FSOC&featureName=Workbooks&itemId=%2Fsubscriptions%2F44e4eff8-1fcb-4a22-a7d6-992ac7286382%2Fresourcegroups%2Fsoc%2Fproviders%2Fmicrosoft.insights%2Fworkbooks%2F4c195aec-747f-40bb-addb-934acb3ec646&name=CiscoASA&func=NavigateToPortalFeature&type=workbook",
-                                      "typeSource": "workbook",
-                                      "gallerySource": "workbook"
-                                    }
-                                  }
-                                }
-                              ],
-                              "sortBy": [
-                                {
-                                  "itemKey": "$gen_bar_updates_3",
-                                  "sortOrder": 2
-                                }
-                              ],
-                              "labelSettings": []
-                            }
-                          },
-                          "name": "query - 1"
-                        },
-                        {
-                          "type": 3,
-                          "content": {
-                            "version": "KqlItem/1.0",
-                            "query": "AzureActivity \r\n| where \"{Caller:lable}\" == \"All\" or Caller in ({Caller})\r\n| where \"{ResourceGroup:lable}\" == \"All\" or ResourceGroup in ({ResourceGroup})\r\n| summarize Informational = countif(Level == \"Informational\"), Warning = countif(Level == \"Warning\"), Error = countif(Level == \"Error\") by bin_at(TimeGenerated, 1h, now())\r\n",
-                            "size": 0,
-                            "exportToExcelOptions": "visible",
-                            "title": "Activities by log level over time",
-                            "color": "redBright",
-                            "timeContext": {
-                              "durationMs": 0
-                            },
-                            "timeContextFromParameter": "TimeRange",
-                            "queryType": 0,
-                            "resourceType": "microsoft.operationalinsights/workspaces",
-                            "visualization": "scatterchart",
-                            "tileSettings": {
-                              "showBorder": false
-                            },
-                            "graphSettings": {
-                              "type": 2,
-                              "topContent": {
-                                "columnMatch": "Error",
-                                "formatter": 12,
-                                "formatOptions": {
-                                  "showIcon": true
-                                }
-                              },
-                              "hivesContent": {
-                                "columnMatch": "TimeGenerated",
-                                "formatter": 1,
-                                "formatOptions": {
-                                  "showIcon": true
-                                }
-                              },
-                              "nodeIdField": "Error",
-                              "sourceIdField": "Error",
-                              "targetIdField": "Error",
-                              "nodeSize": null,
-                              "staticNodeSize": 100,
-                              "colorSettings": null,
-                              "groupByField": "TimeGenerated",
-                              "hivesMargin": 5
-                            }
-                          },
-                          "name": "query - 4"
-                        }
-                      ],
-                      "styleSettings": {},
-                      "fromTemplateId": "sentinel-AzureActivity",
-                      "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
-                    }
-                  },
-                  "resources": [
-                    {
-                      "type": "Microsoft.Insights/workbooks",
-                      "apiVersion": "2023-06-01",
-                      "name": "[variables('workbookId')]",
-                      "location": "[parameters('location')]",
-                      "kind": "shared",
-                      "properties": {
-                        "displayName": "[parameters('displayName')]",
-                        "serializedData": "[string(variables('serializedData'))]",
-                        "version": "Notebook/1.0",
-                        "sourceId": "[parameters('workspaceResourceId')]",
-                        "category": "sentinel"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "condition": "[parameters('deployAzureActivitySolution')]",
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2025-04-01",
-              "name": "[format('deploy-workbook-azure-service-health-{0}', parameters('deploymentNameSuffix'))]",
-              "subscriptionId": "[parameters('workspaceSubscriptionId')]",
-              "resourceGroup": "[parameters('workspaceResourceGroupName')]",
-              "properties": {
-                "expressionEvaluationOptions": {
-                  "scope": "inner"
-                },
-                "mode": "Incremental",
-                "parameters": {
-                  "workspaceResourceId": {
-                    "value": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.OperationalInsights/workspaces/{2}', parameters('workspaceSubscriptionId'), parameters('workspaceResourceGroupName'), parameters('workspaceName'))]"
-                  },
-                  "location": {
-                    "value": "[parameters('workspaceLocation')]"
-                  },
-                  "displayName": {
-                    "value": "[parameters('azureServiceHealthWorkbookName')]"
-                  }
-                },
-                "template": {
-                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                  "contentVersion": "1.0.0.0",
-                  "parameters": {
-                    "workspaceResourceId": {
-                      "type": "string"
-                    },
-                    "location": {
-                      "type": "string"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "defaultValue": "Azure Service Health (Activity Logs)"
-                    }
-                  },
-                  "variables": {
-                    "workbookId": "[guid(parameters('workspaceResourceId'), 'AzureServiceHealthWorkbook')]",
-                    "serializedData": {
-                      "version": "Notebook/1.0",
-                      "items": [
-                        {
-                          "type": 1,
-                          "content": {
-                            "json": "## Azure Activity Logs for Azure Service Health Analysis Workbook"
-                          },
-                          "name": "text - 1"
-                        },
-                        {
-                          "type": 9,
-                          "content": {
-                            "version": "KqlParameterItem/1.0",
-                            "crossComponentResources": [
-                              "{Subscription}"
-                            ],
-                            "parameters": [
-                              {
-                                "id": "76e0f423-6828-47f3-aa86-522604bbbc6f",
-                                "version": "KqlParameterItem/1.0",
-                                "name": "Subscription",
-                                "type": 6,
-                                "description": "Azure Subscription where is the Log Analytics with Activity Logs informaiton",
-                                "isRequired": true,
-                                "query": "summarize by subscriptionId\r\n| project value = strcat(\"/subscriptions/\",subscriptionId), label = subscriptionId\r\n| order by value ",
-                                "crossComponentResources": [
-                                  "value::all"
-                                ],
-                                "typeSettings": {
-                                  "additionalResourceOptions": [],
-                                  "showDefault": false
-                                },
-                                "timeContext": {
-                                  "durationMs": 86400000
-                                },
-                                "queryType": 1,
-                                "resourceType": "microsoft.resourcegraph/resources",
-                                "value": "/subscriptions/fcb7d51b-418f-45a9-8418-5c0f17e343c8"
-                              },
-                              {
-                                "id": "ea100a5b-3c79-4761-8235-6a7989c83da5",
-                                "version": "KqlParameterItem/1.0",
-                                "name": "LAworkspace",
-                                "label": "Log Analytics workspace",
-                                "type": 5,
-                                "description": "Log Analytics workspace where the Activity Logs information is sent",
-                                "isRequired": true,
-                                "query": "where type == 'microsoft.operationalinsights/workspaces'\r\n| project id\r\n| order by id asc",
-                                "crossComponentResources": [
-                                  "{Subscription}"
-                                ],
-                                "typeSettings": {
-                                  "additionalResourceOptions": [],
-                                  "showDefault": false
-                                },
-                                "timeContext": {
-                                  "durationMs": 86400000
-                                },
-                                "queryType": 1,
-                                "resourceType": "microsoft.resourcegraph/resources",
-                                "value": ""
-                              },
-                              {
-                                "id": "6b112ffe-a3a2-4b9e-a17a-c4ea5af739d7",
-                                "version": "KqlParameterItem/1.0",
-                                "name": "TimeRange",
-                                "type": 4,
-                                "typeSettings": {
-                                  "selectableValues": [
-                                    {
-                                      "durationMs": 3600000
-                                    },
-                                    {
-                                      "durationMs": 86400000
-                                    },
-                                    {
-                                      "durationMs": 259200000
-                                    },
-                                    {
-                                      "durationMs": 604800000
-                                    },
-                                    {
-                                      "durationMs": 1209600000
-                                    },
-                                    {
-                                      "durationMs": 2592000000
-                                    }
-                                  ],
-                                  "allowCustom": true
-                                },
-                                "timeContext": {
-                                  "durationMs": 86400000
-                                },
-                                "value": {
-                                  "durationMs": 2592000000
-                                }
-                              }
-                            ],
-                            "style": "pills",
-                            "queryType": 1,
-                            "resourceType": "microsoft.resourcegraph/resources"
-                          },
-                          "name": "parameters - 0"
-                        },
-                        {
-                          "type": 9,
-                          "content": {
-                            "version": "KqlParameterItem/1.0",
-                            "crossComponentResources": [
-                              "{LAworkspace}"
-                            ],
-                            "parameters": [
-                              {
-                                "id": "2fb175cb-a2b6-4dd3-9473-886a8db4cd9c",
-                                "version": "KqlParameterItem/1.0",
-                                "name": "TrackingID_P",
-                                "label": "Tracking ID",
-                                "type": 2,
-                                "isRequired": true,
-                                "multiSelect": true,
-                                "quote": "'",
-                                "delimiter": ",",
-                                "query": "AzureActivity\r\n| where CategoryValue == \"ServiceHealth\"\r\n| extend TrackingId = tostring(Properties_d.trackingId)\r\n| distinct TrackingId\r\n| order by TrackingId asc",
-                                "crossComponentResources": [
-                                  "{LAworkspace}"
-                                ],
-                                "typeSettings": {
-                                  "additionalResourceOptions": [
-                                    "value::all"
-                                  ],
-                                  "selectAllValue": "All",
-                                  "showDefault": false
-                                },
-                                "timeContext": {
-                                  "durationMs": 0
-                                },
-                                "timeContextFromParameter": "TimeRange",
-                                "queryType": 0,
-                                "resourceType": "microsoft.operationalinsights/workspaces",
-                                "value": [
-                                  "value::all"
-                                ]
-                              }
-                            ],
-                            "style": "pills",
-                            "queryType": 0,
-                            "resourceType": "microsoft.operationalinsights/workspaces"
-                          },
-                          "name": "parameters - 3"
-                        },
-                        {
-                          "type": 12,
-                          "content": {
-                            "version": "NotebookGroup/1.0",
-                            "groupType": "editable",
-                            "items": [
-                              {
-                                "type": 3,
-                                "content": {
-                                  "version": "KqlItem/1.0",
-                                  "query": "AzureActivity\r\n| where CategoryValue == \"ServiceHealth\" \r\n| summarize TimeGenerated=arg_max(TimeGenerated,*) by SubscriptionId\r\n| extend SubscriptionId == strcat('/subscriptions/', SubscriptionId)",
-                                  "size": 1,
-                                  "showAnalytics": true,
-                                  "title": "Subscriptions Impacted",
-                                  "timeContextFromParameter": "TimeRange",
-                                  "queryType": 0,
-                                  "resourceType": "microsoft.operationalinsights/workspaces",
-                                  "crossComponentResources": [
-                                    "{LAworkspace}"
-                                  ],
-                                  "visualization": "tiles",
-                                  "gridSettings": {
-                                    "formatters": [
-                                      {
-                                        "columnMatch": "TimeGenerated",
-                                        "formatter": 0,
-                                        "formatOptions": {
-                                          "customColumnWidthSetting": "22ch"
-                                        }
-                                      }
-                                    ]
-                                  },
-                                  "sortBy": [],
-                                  "tileSettings": {
-                                    "titleContent": {
-                                      "columnMatch": "SubscriptionId",
-                                      "formatter": 13,
-                                      "formatOptions": {
-                                        "linkTarget": null,
-                                        "showIcon": true
-                                      }
-                                    },
-                                    "showBorder": false
-                                  }
-                                },
-                                "customWidth": "30",
-                                "name": "query - 0 - Copy",
-                                "styleSettings": {
-                                  "showBorder": true
-                                }
-                              }
-                            ]
-                          },
-                          "name": "GroupActivityLogs01",
-                          "styleSettings": {
-                            "showBorder": true
-                          }
-                        }
-                      ],
-                      "fallbackResourceIds": [],
-                      "fromTemplateId": "sentinel-AzureServiceHealthWorkbook",
-                      "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
-                    }
-                  },
-                  "resources": [
-                    {
-                      "type": "Microsoft.Insights/workbooks",
-                      "apiVersion": "2023-06-01",
-                      "name": "[variables('workbookId')]",
-                      "location": "[parameters('location')]",
-                      "kind": "shared",
-                      "properties": {
-                        "displayName": "[parameters('displayName')]",
-                        "serializedData": "[string(variables('serializedData'))]",
-                        "version": "Notebook/1.0",
-                        "sourceId": "[parameters('workspaceResourceId')]",
-                        "category": "sentinel"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "condition": "[parameters('deployAzureActivitySolution')]",
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2025-04-01",
-              "name": "[format('deploy-workbook-azure-service-health-linked-{0}', parameters('deploymentNameSuffix'))]",
-              "subscriptionId": "[parameters('workspaceSubscriptionId')]",
-              "resourceGroup": "[parameters('workspaceResourceGroupName')]",
-              "dependsOn": [
-                "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Resources/deployments/{2}', parameters('workspaceSubscriptionId'), parameters('workspaceResourceGroupName'), format('deploy-workbook-azure-service-health-{0}', parameters('deploymentNameSuffix')))]"
-              ],
-              "properties": {
-                "expressionEvaluationOptions": {
-                  "scope": "inner"
-                },
-                "mode": "Incremental",
-                "parameters": {
-                  "workspaceResourceId": {
-                    "value": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.OperationalInsights/workspaces/{2}', parameters('workspaceSubscriptionId'), parameters('workspaceResourceGroupName'), parameters('workspaceName'))]"
-                  },
-                  "location": {
-                    "value": "[parameters('workspaceLocation')]"
-                  },
-                  "displayName": {
-                    "value": "[parameters('azureServiceHealthWorkbookName')]"
-                  }
-                },
-                "templateLink": {
-                  "uri": "[format('{0}/custom-workbooks/deploy/AzureServiceHealthWorkbook.workbook.template.json', parameters('templateBaseUri'))]",
-                  "contentVersion": "1.0.0.0"
-                }
-              }
-            },
-            {
-              "condition": "[parameters('deployMicrosoftEntraSolution')]",
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2025-04-01",
-              "name": "[format('deploy-workbook-entra-audit-{0}', parameters('deploymentNameSuffix'))]",
-              "subscriptionId": "[parameters('workspaceSubscriptionId')]",
-              "resourceGroup": "[parameters('workspaceResourceGroupName')]",
-              "properties": {
-                "expressionEvaluationOptions": {
-                  "scope": "inner"
-                },
-                "mode": "Incremental",
-                "parameters": {
-                  "workspaceResourceId": {
-                    "value": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.OperationalInsights/workspaces/{2}', parameters('workspaceSubscriptionId'), parameters('workspaceResourceGroupName'), parameters('workspaceName'))]"
-                  },
-                  "location": {
-                    "value": "[parameters('workspaceLocation')]"
-                  },
-                  "displayName": {
-                    "value": "[parameters('entraAuditWorkbookName')]"
-                  }
-                },
-                "templateLink": {
-                  "uri": "[format('{0}/custom-workbooks/deploy/AzureActiveDirectoryAuditLogs.workbook.template.json', parameters('templateBaseUri'))]",
-                  "contentVersion": "1.0.0.0"
-                }
-              }
-            },
-            {
-              "condition": "[parameters('deployMicrosoftEntraSolution')]",
-              "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2025-04-01",
-              "name": "[format('deploy-workbook-entra-signin-{0}', parameters('deploymentNameSuffix'))]",
-              "subscriptionId": "[parameters('workspaceSubscriptionId')]",
-              "resourceGroup": "[parameters('workspaceResourceGroupName')]",
-              "properties": {
-                "expressionEvaluationOptions": {
-                  "scope": "inner"
-                },
-                "mode": "Incremental",
-                "parameters": {
-                  "workspaceResourceId": {
-                    "value": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.OperationalInsights/workspaces/{2}', parameters('workspaceSubscriptionId'), parameters('workspaceResourceGroupName'), parameters('workspaceName'))]"
-                  },
-                  "location": {
-                    "value": "[parameters('workspaceLocation')]"
-                  },
-                  "displayName": {
-                    "value": "[parameters('entraSigninWorkbookName')]"
-                  }
-                },
-                "templateLink": {
-                  "uri": "[format('{0}/custom-workbooks/deploy/AzureActiveDirectorySignins.workbook.template.json', parameters('templateBaseUri'))]",
-                  "contentVersion": "1.0.0.0"
                 }
               }
             },
@@ -27389,7 +26627,9 @@
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]"
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]",
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('naming-convention-security-{0}', parameters('deploymentNameSuffix')))]",
+        "[subscriptionResourceId(parameters('operationsSubscriptionId'), 'Microsoft.Resources/deployments', format('deploy-rg-security-{0}', parameters('deploymentNameSuffix')))]"
       ]
     },
     {
@@ -27469,7 +26709,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "7161972628795091820"
+              "templateHash": "17580921606469923593"
             }
           },
           "parameters": {
@@ -27579,10 +26819,17 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "6902469917586543260"
+                      "templateHash": "16171546671354318095"
                     }
                   },
                   "parameters": {
+                    "enabled": {
+                      "type": "bool",
+                      "defaultValue": true,
+                      "metadata": {
+                        "description": "When false, skips creating the resource group and returns empty outputs."
+                      }
+                    },
                     "mlzTags": {
                       "type": "object"
                     },
@@ -27599,6 +26846,7 @@
                   },
                   "resources": [
                     {
+                      "condition": "[parameters('enabled')]",
                       "type": "Microsoft.Resources/resourceGroups",
                       "apiVersion": "2019-05-01",
                       "name": "[parameters('name')]",
@@ -27609,19 +26857,19 @@
                   "outputs": {
                     "id": {
                       "type": "string",
-                      "value": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name'))]"
+                      "value": "[coalesce(if(parameters('enabled'), subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), null()), '')]"
                     },
                     "name": {
                       "type": "string",
-                      "value": "[parameters('name')]"
+                      "value": "[coalesce(if(parameters('enabled'), parameters('name'), null()), '')]"
                     },
                     "location": {
                       "type": "string",
-                      "value": "[reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full').location]"
+                      "value": "[coalesce(tryGet(if(parameters('enabled'), reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full'), null()), 'location'), '')]"
                     },
                     "tags": {
                       "type": "object",
-                      "value": "[reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full').tags]"
+                      "value": "[coalesce(tryGet(if(parameters('enabled'), reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full'), null()), 'tags'), createObject())]"
                     }
                   }
                 }
@@ -29202,9 +28450,7 @@
         }
       },
       "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-security-rg-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]"
+        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]"
       ]
     },
     {
@@ -29329,7 +28575,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "11661208773492248656"
+              "templateHash": "5837348367883031432"
             }
           },
           "parameters": {
@@ -29479,10 +28725,17 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "6902469917586543260"
+                      "templateHash": "16171546671354318095"
                     }
                   },
                   "parameters": {
+                    "enabled": {
+                      "type": "bool",
+                      "defaultValue": true,
+                      "metadata": {
+                        "description": "When false, skips creating the resource group and returns empty outputs."
+                      }
+                    },
                     "mlzTags": {
                       "type": "object"
                     },
@@ -29499,6 +28752,7 @@
                   },
                   "resources": [
                     {
+                      "condition": "[parameters('enabled')]",
                       "type": "Microsoft.Resources/resourceGroups",
                       "apiVersion": "2019-05-01",
                       "name": "[parameters('name')]",
@@ -29509,19 +28763,19 @@
                   "outputs": {
                     "id": {
                       "type": "string",
-                      "value": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name'))]"
+                      "value": "[coalesce(if(parameters('enabled'), subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), null()), '')]"
                     },
                     "name": {
                       "type": "string",
-                      "value": "[parameters('name')]"
+                      "value": "[coalesce(if(parameters('enabled'), parameters('name'), null()), '')]"
                     },
                     "location": {
                       "type": "string",
-                      "value": "[reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full').location]"
+                      "value": "[coalesce(tryGet(if(parameters('enabled'), reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full'), null()), 'location'), '')]"
                     },
                     "tags": {
                       "type": "object",
-                      "value": "[reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full').tags]"
+                      "value": "[coalesce(tryGet(if(parameters('enabled'), reference(subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name')), '2019-05-01', 'full'), null()), 'tags'), createObject())]"
                     }
                   }
                 }
@@ -32351,11 +31605,14 @@
         },
         "mode": "Incremental",
         "parameters": {
-          "deploySentinel": {
-            "value": "[parameters('deploySentinel')]"
+          "enableActivityLogDiagnosticSettings": {
+            "value": "[and(parameters('deploySentinel'), parameters('enableAzureActivityDataConnector'))]"
           },
-          "enableAzureActivityConnector": {
-            "value": "[parameters('enableAzureActivityDataConnector')]"
+          "defaultActivityLogDiagnosticSettingName": {
+            "value": "[parameters('azureActivityDiagnosticSettingName')]"
+          },
+          "activityLogDiagnosticSettingNames": {
+            "value": "[parameters('activityLogDiagnosticSettingNames')]"
           },
           "bastionDiagnosticsLogs": {
             "value": "[parameters('bastionDiagnosticsLogs')]"
@@ -32431,16 +31688,10 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "11563643005545658839"
+              "templateHash": "991443015524842019"
             }
           },
           "parameters": {
-            "deploySentinel": {
-              "type": "bool"
-            },
-            "enableAzureActivityConnector": {
-              "type": "bool"
-            },
             "bastionDiagnosticsLogs": {
               "type": "array"
             },
@@ -32506,6 +31757,27 @@
             },
             "tiers": {
               "type": "array"
+            },
+            "enableActivityLogDiagnosticSettings": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Toggle to deploy subscription Activity Log diagnostic settings into the Log Analytics workspace."
+              }
+            },
+            "activityLogDiagnosticSettingNames": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Optional map of subscriptionId => Activity Log diagnostic setting name. Used to adopt an existing diagnostic setting name when redeploying."
+              }
+            },
+            "defaultActivityLogDiagnosticSettingName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Default Activity Log diagnostic setting name to use when no per-subscription override exists. Leave blank to allow the nested module to apply its default naming."
+              }
             }
           },
           "variables": {
@@ -32539,11 +31811,11 @@
           },
           "resources": [
             {
-              "condition": "[not(and(parameters('deploySentinel'), parameters('enableAzureActivityConnector')))]",
               "copy": {
                 "name": "activityLogDiagnosticSettings",
                 "count": "[length(variables('dedupedSubscriptionIds'))]"
               },
+              "condition": "[parameters('enableActivityLogDiagnosticSettings')]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-activity-diags-{0}-{1}', copyIndex(), parameters('deploymentNameSuffix'))]",
@@ -32557,7 +31829,8 @@
                 "parameters": {
                   "logAnalyticsWorkspaceId": {
                     "value": "[parameters('logAnalyticsWorkspaceResourceId')]"
-                  }
+                  },
+                  "diagnosticSettingName": "[if(contains(parameters('activityLogDiagnosticSettingNames'), variables('dedupedSubscriptionIds')[copyIndex()]), createObject('value', string(parameters('activityLogDiagnosticSettingNames')[variables('dedupedSubscriptionIds')[copyIndex()]])), createObject('value', parameters('defaultActivityLogDiagnosticSettingName')))]"
                 },
                 "template": {
                   "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
@@ -32566,19 +31839,29 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "4263556345704686596"
+                      "templateHash": "17088257839616723405"
                     }
                   },
                   "parameters": {
                     "logAnalyticsWorkspaceId": {
                       "type": "string"
+                    },
+                    "diagnosticSettingName": {
+                      "type": "string",
+                      "defaultValue": "",
+                      "metadata": {
+                        "description": "Optional override for the Activity Log diagnostic setting name. When empty, a deterministic default name based on the subscription ID is used."
+                      }
                     }
+                  },
+                  "variables": {
+                    "effectiveDiagnosticSettingName": "[if(empty(parameters('diagnosticSettingName')), format('diag-activity-log-{0}', subscription().subscriptionId), parameters('diagnosticSettingName'))]"
                   },
                   "resources": [
                     {
                       "type": "microsoft.insights/diagnosticSettings",
                       "apiVersion": "2017-05-01-preview",
-                      "name": "[format('diag-activity-log-{0}', subscription().subscriptionId)]",
+                      "name": "[variables('effectiveDiagnosticSettingName')]",
                       "properties": {
                         "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
                         "logs": [
@@ -32633,8 +31916,11 @@
                 },
                 "mode": "Incremental",
                 "parameters": {
-                  "diagnosticStorageAccountResourceId": {
-                    "value": "[parameters('storageAccountResourceIds')[1]]"
+                  "diagnosticStorageAccountName": {
+                    "value": "[split(parameters('storageAccountResourceIds')[1], '/')[8]]"
+                  },
+                  "diagnosticStorageAccountResourceGroupName": {
+                    "value": "[split(parameters('storageAccountResourceIds')[1], '/')[4]]"
                   },
                   "logAnalyticsWorkspaceDiagnosticSettingName": {
                     "value": "[variables('operations').namingConvention.logAnalyticsWorkspaceDiagnosticSetting]"
@@ -32653,11 +31939,14 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "7890300608061972713"
+                      "templateHash": "531273035654095778"
                     }
                   },
                   "parameters": {
-                    "diagnosticStorageAccountResourceId": {
+                    "diagnosticStorageAccountName": {
+                      "type": "string"
+                    },
+                    "diagnosticStorageAccountResourceGroupName": {
                       "type": "string"
                     },
                     "logAnalyticsWorkspaceDiagnosticSettingName": {
@@ -32679,7 +31968,7 @@
                       "name": "[parameters('logAnalyticsWorkspaceDiagnosticSettingName')]",
                       "properties": {
                         "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]",
-                        "storageAccountId": "[parameters('diagnosticStorageAccountResourceId')]",
+                        "storageAccountId": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('diagnosticStorageAccountResourceGroupName')), 'Microsoft.Storage/storageAccounts', parameters('diagnosticStorageAccountName'))]",
                         "logs": [
                           {
                             "category": "Audit",
@@ -33579,519 +32868,6 @@
         "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]",
         "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-remote-access-{0}', parameters('deploymentNameSuffix')))]",
         "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-log-storage-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-workbook-azureactivity-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/custom-workbooks/deploy/AzureActivity.workbook.template.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceResourceId": {
-            "value": "[variables('logAnalyticsWorkspaceResourceId')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-workbook-entra-audit-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/custom-workbooks/deploy/AzureActiveDirectoryAuditLogs.workbook.template.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceResourceId": {
-            "value": "[variables('logAnalyticsWorkspaceResourceId')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-workbook-entra-signins-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/custom-workbooks/deploy/AzureActiveDirectorySignins.workbook.template.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceResourceId": {
-            "value": "[variables('logAnalyticsWorkspaceResourceId')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-workbook-servicehealth-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/custom-workbooks/deploy/AzureServiceHealthWorkbook.workbook.template.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceResourceId": {
-            "value": "[variables('logAnalyticsWorkspaceResourceId')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-01-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/AzureAutomationRunbookOrWebhookCreatedOrUpdated.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-02-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/DefaultRouteToInternetOrNVAAdded.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-03-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/DiagnosticSettingsDeletedOrDisabled.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-04-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/KeyVaultPublicAccessEnabled.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-05-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/LocalAdminGroupMembershipChanged.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-06-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/NSGFlowLogsDisabledOrDeleted.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-07-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/NSGInboundAnyAnyRuleCreatedOrUpdated.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-08-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/NSGInboundInternetToManagementPorts.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-09-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/NSGOutboundAllowToInternet.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-10-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/O365InboxRuleForwardingToExternalDomain.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-11-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/PolicyAssignmentDeletedOrDisabled.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-12-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/ResourceLockDeleted.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-13-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/StorageAccountPublicAccessEnabled.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-14-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/SubnetWithoutNSGAssociation.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('deploySentinel')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-custom-analytics-15-{0}', parameters('deploymentNameSuffix'))]",
-      "subscriptionId": "[split(variables('logAnalyticsWorkspaceResourceId'), '/')[2]]",
-      "resourceGroup": "[variables('monitoringResourceGroupName')]",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/analytic-rules/deploy/SuccessfulLegacyAuthenticationSignin.json",
-          "contentVersion": "1.0.0.0"
-        },
-        "parameters": {
-          "workspaceName": {
-            "value": "[variables('logAnalyticsWorkspaceName')]"
-          },
-          "enableRule": {
-            "value": true
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]",
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-sentinel-content-{0}', parameters('deploymentNameSuffix')))]"
       ]
     },
     {

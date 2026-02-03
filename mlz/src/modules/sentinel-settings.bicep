@@ -187,31 +187,39 @@ resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020
 
       resourceId="$ENTITY_SETTING_ID"
       apiVersion="2024-01-01-preview"
-      payload="$ENTITY_SETTING_PAYLOAD"
+      
+      # Write payload to file to avoid shell escaping issues
+      echo "$ENTITY_SETTING_PAYLOAD" > /tmp/payload.json
 
       etag=$(az rest --method get --url "$resourceId?api-version=$apiVersion" --query etag -o tsv --only-show-errors 2>/dev/null || echo "")
 
       if [ -n "$etag" ]; then
-        response=$(az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?
       else
-        response=$(az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?
       fi
 
       if [ -n "${rc:-}" ] && [ "${rc:-0}" -ne 0 ]; then
         if echo "$response" | grep -q "Only 'Security Administrator' and 'Global Administrator'"; then
+          echo "INFO: Entity Analytics setting requires Global Administrator or Security Administrator role." >&2
           echo "$response" >&2
           exit 0
         fi
 
         # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, setting changes may be blocked.
         if echo "$response" | grep -qi "changes.*disabled\|primary.*workspace\|threat protection portal"; then
+          echo "INFO: Entity Analytics setting is managed by the primary workspace (Microsoft Threat Protection)." >&2
           echo "$response" >&2
           exit 0
         fi
 
+        echo "ERROR: Failed to configure Entity Analytics setting" >&2
         echo "$response" >&2
         exit ${rc:-1}
       fi
+
+      echo "SUCCESS: Entity Analytics setting configured" >&2
+      echo '{"status":"configured"}' > $AZ_SCRIPTS_OUTPUT_PATH
     '''
   }
   dependsOn: [
@@ -251,36 +259,45 @@ resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = 
 
       resourceId="$UEBA_SETTING_ID"
       apiVersion="2024-01-01-preview"
-      payload="$UEBA_SETTING_PAYLOAD"
+      
+      # Write payload to file to avoid shell escaping issues
+      echo "$UEBA_SETTING_PAYLOAD" > /tmp/payload.json
 
       etag=$(az rest --method get --url "$resourceId?api-version=$apiVersion" --query etag -o tsv --only-show-errors 2>/dev/null || echo "")
 
       if [ -n "$etag" ]; then
-        response=$(az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?
       else
-        response=$(az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?
       fi
 
       if [ -n "${rc:-}" ] && [ "${rc:-0}" -ne 0 ]; then
         if echo "$response" | grep -q "requires 'EntityAnalytics' to be enabled"; then
+          echo "INFO: UEBA requires Entity Analytics to be enabled first." >&2
           echo "$response" >&2
           exit 0
         fi
 
         if echo "$response" | grep -q "Only 'Security Administrator' and 'Global Administrator'"; then
+          echo "INFO: UEBA setting requires Global Administrator or Security Administrator role." >&2
           echo "$response" >&2
           exit 0
         fi
 
         # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, setting changes may be blocked.
         if echo "$response" | grep -qi "changes.*disabled\|primary.*workspace\|threat protection portal"; then
+          echo "INFO: UEBA setting is managed by the primary workspace (Microsoft Threat Protection)." >&2
           echo "$response" >&2
           exit 0
         fi
 
+        echo "ERROR: Failed to configure UEBA setting" >&2
         echo "$response" >&2
         exit ${rc:-1}
       fi
+
+      echo "SUCCESS: UEBA setting configured" >&2
+      echo '{"status":"configured"}' > $AZ_SCRIPTS_OUTPUT_PATH
     '''
   }
   dependsOn: [
@@ -319,31 +336,39 @@ resource anomaliesSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-0
 
       resourceId="$ANOMALIES_SETTING_ID"
       apiVersion="2024-01-01-preview"
-      payload="$ANOMALIES_SETTING_PAYLOAD"
+      
+      # Write payload to file to avoid shell escaping issues
+      echo "$ANOMALIES_SETTING_PAYLOAD" > /tmp/payload.json
 
       etag=$(az rest --method get --url "$resourceId?api-version=$apiVersion" --query etag -o tsv --only-show-errors 2>/dev/null || echo "")
 
       if [ -n "$etag" ]; then
-        response=$(az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-Match=$etag" --url "$resourceId?api-version=$apiVersion" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?
       else
-        response=$(az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body "$payload" --only-show-errors 2>&1) || rc=$?
+        response=$(az rest --method put --headers "Content-Type=application/json" "If-None-Match=*" --url "$resourceId?api-version=$apiVersion" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?
       fi
 
       if [ -n "${rc:-}" ] && [ "${rc:-0}" -ne 0 ]; then
         if echo "$response" | grep -q "Only 'Security Administrator' and 'Global Administrator'"; then
+          echo "INFO: Anomalies setting requires Global Administrator or Security Administrator role." >&2
           echo "$response" >&2
           exit 0
         fi
 
         # If the workspace is the Primary workspace in Microsoft 365 Defender / Threat Protection, setting changes may be blocked.
         if echo "$response" | grep -qi "changes.*disabled\|primary.*workspace\|threat protection portal"; then
+          echo "INFO: Anomalies setting is managed by the primary workspace (Microsoft Threat Protection)." >&2
           echo "$response" >&2
           exit 0
         fi
 
+        echo "ERROR: Failed to configure Anomalies setting" >&2
         echo "$response" >&2
         exit ${rc:-1}
       fi
+
+      echo "SUCCESS: Anomalies setting configured" >&2
+      echo '{"status":"configured"}' > $AZ_SCRIPTS_OUTPUT_PATH
     '''
   }
   dependsOn: [
