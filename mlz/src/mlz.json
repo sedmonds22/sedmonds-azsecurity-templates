@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "6015638332656585276"
+      "templateHash": "17837440523027358271"
     }
   },
   "parameters": {
@@ -341,20 +341,11 @@
         "ADFSSignInLogs",
         "RiskyUsers",
         "RiskyServicePrincipals",
-        "UserRiskEvents"
+        "UserRiskEvents",
+        "ServicePrincipalRiskEvents"
       ],
       "metadata": {
         "description": "Log categories to enable for Microsoft Entra ID diagnostics."
-      }
-    },
-    "entraRetentionPolicy": {
-      "type": "object",
-      "defaultValue": {
-        "enabled": false,
-        "days": 0
-      },
-      "metadata": {
-        "description": "Retention policy configuration for Microsoft Entra ID diagnostics."
       }
     },
     "azureActivityWorkbookName": {
@@ -4967,6 +4958,15 @@
           "deploySentinelAutomationScript": {
             "value": "[parameters('deploySentinelAutomationScript')]"
           },
+          "enableEntraDiagnostics": {
+            "value": "[parameters('enableEntraDiagnostics')]"
+          },
+          "entraDiagnosticName": {
+            "value": "[parameters('entraDiagnosticName')]"
+          },
+          "entraLogCategories": {
+            "value": "[parameters('entraLogCategories')]"
+          },
           "entraConnectorDataTypeStates": {
             "value": "[parameters('entraDataConnectorLogStates')]"
           },
@@ -5008,7 +5008,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "9584882817448206416"
+              "templateHash": "8166291306361125932"
             }
           },
           "parameters": {
@@ -5044,6 +5044,18 @@
             "deploySentinelAutomationScript": {
               "type": "bool",
               "defaultValue": true
+            },
+            "enableEntraDiagnostics": {
+              "type": "bool",
+              "defaultValue": true
+            },
+            "entraDiagnosticName": {
+              "type": "string",
+              "defaultValue": "diag-entra"
+            },
+            "entraLogCategories": {
+              "type": "array",
+              "defaultValue": []
             },
             "entraConnectorDataTypeStates": {
               "type": "object"
@@ -5567,6 +5579,18 @@
                   },
                   "sentinelAutomationPrincipalId": {
                     "value": "[parameters('sentinelAutomationPrincipalId')]"
+                  },
+                  "enableEntraDiagnostics": {
+                    "value": "[parameters('enableEntraDiagnostics')]"
+                  },
+                  "entraDiagnosticName": {
+                    "value": "[parameters('entraDiagnosticName')]"
+                  },
+                  "entraWorkspaceResourceId": {
+                    "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.resourceId.value]"
+                  },
+                  "entraLogCategories": {
+                    "value": "[parameters('entraLogCategories')]"
                   }
                 },
                 "template": {
@@ -5576,7 +5600,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "16148580182341068224"
+                      "templateHash": "15866821724080041937"
                     }
                   },
                   "parameters": {
@@ -5645,6 +5669,46 @@
                         "description": "Toggle to ensure Microsoft Sentinel anomaly detection remains enabled."
                       }
                     },
+                    "enableEntraDiagnostics": {
+                      "type": "bool",
+                      "defaultValue": true,
+                      "metadata": {
+                        "description": "Toggle to configure Microsoft Entra ID diagnostic settings."
+                      }
+                    },
+                    "entraDiagnosticName": {
+                      "type": "string",
+                      "defaultValue": "diag-entra",
+                      "metadata": {
+                        "description": "Name of the Microsoft Entra ID diagnostic setting."
+                      }
+                    },
+                    "entraWorkspaceResourceId": {
+                      "type": "string",
+                      "defaultValue": "",
+                      "metadata": {
+                        "description": "Resource ID of the Log Analytics workspace for Entra diagnostics."
+                      }
+                    },
+                    "entraLogCategories": {
+                      "type": "array",
+                      "defaultValue": [
+                        "AuditLogs",
+                        "SignInLogs",
+                        "NonInteractiveUserSignInLogs",
+                        "ServicePrincipalSignInLogs",
+                        "ManagedIdentitySignInLogs",
+                        "ProvisioningLogs",
+                        "ADFSSignInLogs",
+                        "RiskyUsers",
+                        "RiskyServicePrincipals",
+                        "UserRiskEvents",
+                        "ServicePrincipalRiskEvents"
+                      ],
+                      "metadata": {
+                        "description": "Log categories to enable for Microsoft Entra ID diagnostics."
+                      }
+                    },
                     "sentinelAutomationPrincipalId": {
                       "type": "string",
                       "defaultValue": "",
@@ -5661,12 +5725,28 @@
                     }
                   },
                   "variables": {
+                    "copy": [
+                      {
+                        "name": "entraLogsConfig",
+                        "count": "[length(parameters('entraLogCategories'))]",
+                        "input": {
+                          "category": "[parameters('entraLogCategories')[copyIndex('entraLogsConfig')]]",
+                          "enabled": true,
+                          "retentionPolicy": {
+                            "enabled": false,
+                            "days": 0
+                          }
+                        }
+                      }
+                    ],
                     "sentinelAutomationContributorRoleDefinitionGuid": "f4c81013-99ee-4d62-a7ee-b3f1f648599a",
                     "workspaceContributorRoleDefinitionGuid": "b24988ac-6180-42a0-ab88-20f7382dd24c",
                     "shouldRunAutomationScript": "[parameters('deploySentinelAutomationScript')]",
                     "shouldConfigureEntitySetting": "[and(and(parameters('enableEntityBehavior'), parameters('deployEntityBehaviorSetting')), or(parameters('useEntityBehaviorScript'), not(parameters('useEntityBehaviorScript'))))]",
                     "shouldConfigureUebaSetting": "[and(parameters('enableUeba'), parameters('deployUebaSetting'))]",
                     "shouldConfigureAnomaliesSetting": "[parameters('enableAnomalies')]",
+                    "shouldConfigureEntraDiagnostics": "[and(parameters('enableEntraDiagnostics'), not(empty(parameters('entraWorkspaceResourceId'))))]",
+                    "entraDiagnosticPayload": "[string(createObject('properties', createObject('workspaceId', parameters('entraWorkspaceResourceId'), 'logs', variables('entraLogsConfig'))))]",
                     "entityBehaviorSettingResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')]",
                     "entityBehaviorSettingPayload": "[string(createObject('kind', 'EntityAnalytics', 'properties', createObject('entityProviders', createArray('AzureActiveDirectory'))))]",
                     "uebaSettingResourceId": "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/settings', 'Ueba')]",
@@ -5743,7 +5823,7 @@
                             "value": "[variables('sentinelAutomationContributorRoleDefinitionGuid')]"
                           }
                         ],
-                        "scriptContent": "      principalId=\"$SENTINEL_SP_OBJECT_ID_OVERRIDE\"\r\n      if [ -z \"$principalId\" ]; then\r\n        principalId=$(az ad sp list --display-name \"Azure Security Insights\" --query \"[0].id\" -o tsv)\r\n      fi\r\n\r\n      if [ -z \"$principalId\" ]; then\r\n        echo \"Azure Security Insights service principal not found\" >&2\r\n        exit 1\r\n      fi\r\n\r\n      scope=\"$SENTINEL_AUTOMATION_SCOPE\"\r\n      roleDefinitionId=\"$SENTINEL_AUTOMATION_ROLE_ID\"\r\n\r\n      existingAssignment=$(az role assignment list --scope \"$scope\" --assignee-object-id \"$principalId\" --role \"$roleDefinitionId\" --query \"[0].id\" -o tsv)\r\n\r\n      if [ -z \"$existingAssignment\" ]; then\r\n        az role assignment create --assignee-object-id \"$principalId\" --assignee-principal-type ServicePrincipal --role \"$roleDefinitionId\" --scope \"$scope\" --only-show-errors\r\n      fi\r\n\r\n      echo \"{\\\"sentinelSpObjectId\\\": \\\"$principalId\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n    "
+                        "scriptContent": "      set -uo pipefail\r\n      \r\n      # Well-known Application ID for Azure Security Insights (constant across all tenants)\r\n      AZURE_SECURITY_INSIGHTS_APP_ID=\"98785600-1bb7-4fb9-b9fa-19afe2c8a360\"\r\n      \r\n      principalId=\"$SENTINEL_SP_OBJECT_ID_OVERRIDE\"\r\n      \r\n      if [ -z \"$principalId\" ]; then\r\n        # Try to look up by App ID first (more reliable)\r\n        principalId=$(az ad sp show --id \"$AZURE_SECURITY_INSIGHTS_APP_ID\" --query \"id\" -o tsv 2>/dev/null || echo \"\")\r\n        \r\n        # Fallback to display name lookup\r\n        if [ -z \"$principalId\" ]; then\r\n          principalId=$(az ad sp list --display-name \"Azure Security Insights\" --query \"[0].id\" -o tsv 2>/dev/null || echo \"\")\r\n        fi\r\n      fi\r\n\r\n      if [ -z \"$principalId\" ]; then\r\n        echo \"INFO: Could not discover Azure Security Insights service principal.\" >&2\r\n        echo \"INFO: This is expected if the identity lacks Directory.Read.All permissions.\" >&2\r\n        echo \"INFO: Sentinel automation role can be assigned manually later if needed.\" >&2\r\n        echo \"INFO: Use the Finalize-SentinelAutomation.ps1 script after deployment.\" >&2\r\n        echo \"{\\\"sentinelSpObjectId\\\": \\\"\\\", \\\"status\\\": \\\"skipped\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n        exit 0\r\n      fi\r\n\r\n      scope=\"$SENTINEL_AUTOMATION_SCOPE\"\r\n      roleDefinitionId=\"$SENTINEL_AUTOMATION_ROLE_ID\"\r\n\r\n      existingAssignment=$(az role assignment list --scope \"$scope\" --assignee-object-id \"$principalId\" --role \"$roleDefinitionId\" --query \"[0].id\" -o tsv 2>/dev/null || echo \"\")\r\n\r\n      if [ -z \"$existingAssignment\" ]; then\r\n        az role assignment create --assignee-object-id \"$principalId\" --assignee-principal-type ServicePrincipal --role \"$roleDefinitionId\" --scope \"$scope\" --only-show-errors 2>&1 || true\r\n      fi\r\n\r\n      echo \"{\\\"sentinelSpObjectId\\\": \\\"$principalId\\\", \\\"status\\\": \\\"configured\\\"}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n    "
                       },
                       "dependsOn": [
                         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]"
@@ -5865,6 +5945,41 @@
                         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]",
                         "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), format('sentinel-script-{0}', uniqueString(resourceGroup().id)), 'automation-script-sentinel-rbac'))]",
                         "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')]"
+                      ]
+                    },
+                    {
+                      "condition": "[variables('shouldConfigureEntraDiagnostics')]",
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[format('configure-entra-diagnostics-{0}', uniqueString(resourceGroup().id))]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzureCLI",
+                      "identity": {
+                        "type": "UserAssigned",
+                        "userAssignedIdentities": {
+                          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id))))]": {}
+                        }
+                      },
+                      "properties": {
+                        "azCliVersion": "2.61.0",
+                        "cleanupPreference": "OnExpiration",
+                        "retentionInterval": "P1D",
+                        "timeout": "PT10M",
+                        "environmentVariables": [
+                          {
+                            "name": "ENTRA_DIAGNOSTIC_NAME",
+                            "value": "[parameters('entraDiagnosticName')]"
+                          },
+                          {
+                            "name": "ENTRA_DIAGNOSTIC_PAYLOAD",
+                            "value": "[variables('entraDiagnosticPayload')]"
+                          }
+                        ],
+                        "scriptContent": "      set -uo pipefail\r\n\r\n      diagnosticName=\"$ENTRA_DIAGNOSTIC_NAME\"\r\n      apiVersion=\"2017-04-01-preview\"\r\n      \r\n      # Write payload to file to avoid shell escaping issues\r\n      echo \"$ENTRA_DIAGNOSTIC_PAYLOAD\" > /tmp/payload.json\r\n\r\n      # Check if diagnostic setting already exists\r\n      existing=$(az rest --method get --url \"https://management.azure.com/providers/microsoft.aadiam/diagnosticSettings/$diagnosticName?api-version=$apiVersion\" --query name -o tsv --only-show-errors 2>/dev/null || echo \"\")\r\n\r\n      if [ -n \"$existing\" ]; then\r\n        echo \"INFO: Entra diagnostic setting '$diagnosticName' already exists, updating...\" >&2\r\n      fi\r\n\r\n      # Create or update the diagnostic setting\r\n      response=$(az rest --method put --url \"https://management.azure.com/providers/microsoft.aadiam/diagnosticSettings/$diagnosticName?api-version=$apiVersion\" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?\r\n\r\n      if [ -n \"${rc:-}\" ] && [ \"${rc:-0}\" -ne 0 ]; then\r\n        # Check for permission errors - requires Global Admin or Security Admin\r\n        if echo \"$response\" | grep -qi \"authorization\\|forbidden\\|global administrator\\|security administrator\\|permission\"; then\r\n          echo \"WARNING: Entra ID diagnostic settings require Global Administrator or Security Administrator role.\" >&2\r\n          echo \"INFO: You can configure this manually in Azure AD > Diagnostic settings > Add diagnostic setting\" >&2\r\n          echo \"$response\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        # Check for conflict (already exists with different config)\r\n        if echo \"$response\" | grep -qi \"conflict\\|already exists\"; then\r\n          echo \"INFO: Entra diagnostic setting already exists.\" >&2\r\n          exit 0\r\n        fi\r\n\r\n        echo \"ERROR: Failed to configure Entra ID diagnostics\" >&2\r\n        echo \"$response\" >&2\r\n        exit ${rc:-1}\r\n      fi\r\n\r\n      echo \"SUCCESS: Entra ID diagnostic setting '$diagnosticName' configured\" >&2\r\n      echo '{\"status\":\"configured\",\"name\":\"'\"$diagnosticName\"'\"}' > $AZ_SCRIPTS_OUTPUT_PATH\r\n    "
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]",
+                        "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, format('sentinel-script-{0}', uniqueString(resourceGroup().id)), 'automation-script-rbac'))]"
                       ]
                     }
                   ],
@@ -6057,120 +6172,6 @@
         "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-networking-{0}', parameters('deploymentNameSuffix')))]",
         "[subscriptionResourceId('Microsoft.Resources/deployments', format('naming-convention-security-{0}', parameters('deploymentNameSuffix')))]",
         "[subscriptionResourceId(parameters('operationsSubscriptionId'), 'Microsoft.Resources/deployments', format('deploy-rg-security-{0}', parameters('deploymentNameSuffix')))]"
-      ]
-    },
-    {
-      "condition": "[parameters('enableEntraDiagnostics')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "[format('deploy-entra-diagnostics-{0}', parameters('deploymentNameSuffix'))]",
-      "scope": "/",
-      "location": "[deployment().location]",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "diagnosticSettingName": {
-            "value": "[parameters('entraDiagnosticName')]"
-          },
-          "workspaceResourceId": {
-            "value": "[reference(subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix'))), '2025-04-01').outputs.logAnalyticsWorkspaceResourceId.value]"
-          },
-          "logCategories": {
-            "value": "[parameters('entraLogCategories')]"
-          },
-          "retentionPolicy": {
-            "value": "[parameters('entraRetentionPolicy')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-08-01/tenantDeploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.39.26.7824",
-              "templateHash": "11640417297466333240"
-            }
-          },
-          "parameters": {
-            "diagnosticSettingName": {
-              "type": "string",
-              "metadata": {
-                "description": "Name of the Microsoft Entra ID diagnostic setting."
-              }
-            },
-            "workspaceResourceId": {
-              "type": "string",
-              "metadata": {
-                "description": "Resource ID of the Log Analytics workspace that will receive Entra logs."
-              }
-            },
-            "logCategories": {
-              "type": "array",
-              "defaultValue": [
-                "AuditLogs",
-                "SignInLogs",
-                "NonInteractiveUserSignInLogs",
-                "ServicePrincipalSignInLogs",
-                "ManagedIdentitySignInLogs",
-                "ProvisioningLogs",
-                "ADFSSignInLogs",
-                "RiskyUsers",
-                "RiskyServicePrincipals",
-                "UserRiskEvents"
-              ],
-              "metadata": {
-                "description": "Log categories to enable for Microsoft Entra ID export."
-              }
-            },
-            "retentionPolicy": {
-              "type": "object",
-              "defaultValue": {
-                "enabled": false,
-                "days": 0
-              },
-              "metadata": {
-                "description": "Optional retention policy applied per category (disabled by default)."
-              }
-            }
-          },
-          "variables": {
-            "copy": [
-              {
-                "name": "logConfigs",
-                "count": "[length(parameters('logCategories'))]",
-                "input": {
-                  "category": "[parameters('logCategories')[copyIndex('logConfigs')]]",
-                  "enabled": true,
-                  "retentionPolicy": "[parameters('retentionPolicy')]"
-                }
-              }
-            ]
-          },
-          "resources": [
-            {
-              "type": "microsoft.aadiam/diagnosticSettings",
-              "apiVersion": "2017-04-01-preview",
-              "name": "[parameters('diagnosticSettingName')]",
-              "properties": {
-                "workspaceId": "[parameters('workspaceResourceId')]",
-                "logs": "[variables('logConfigs')]"
-              }
-            }
-          ],
-          "outputs": {
-            "diagnosticSettingId": {
-              "type": "string",
-              "value": "[tenantResourceId('microsoft.aadiam/diagnosticSettings', parameters('diagnosticSettingName'))]"
-            }
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/deployments', format('deploy-monitoring-{0}', parameters('deploymentNameSuffix')))]"
       ]
     },
     {
