@@ -15,6 +15,9 @@ param deployUebaSetting bool = true
 param uebaDataSources array
 param enableAnomalies bool
 param deploySentinelAutomationScript bool = true
+param enableEntraDiagnostics bool = true
+param entraDiagnosticName string = 'diag-entra'
+param entraLogCategories array = []
 param entraConnectorDataTypeStates object
 param tenantId string
 param sentinelAutomationPrincipalId string = ''
@@ -122,6 +125,10 @@ module sentinelSettings 'sentinel-settings.bicep' = if (deploySentinel) {
     enableAnomalies: enableAnomalies
     deploySentinelAutomationScript: deploySentinelAutomationScript
     sentinelAutomationPrincipalId: sentinelAutomationPrincipalId
+    enableEntraDiagnostics: enableEntraDiagnostics
+    entraDiagnosticName: entraDiagnosticName
+    entraWorkspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+    entraLogCategories: entraLogCategories
   }
   dependsOn: [
     logAnalyticsWorkspace

@@ -1,0 +1,95 @@
+{
+  "properties": {
+    "workspaceId": "/subscriptions/a3c32389-f2a2-40c1-a08f-f21215a4f936/resourceGroups/smlz5-dev-use2-security-rg/providers/Microsoft.OperationalInsights/workspaces/smlz5-dev-use2-security-log",
+    "logs": [
+      {
+        "enabled": true,
+        "category": "AuditLogs",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "SignInLogs",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "NonInteractiveUserSignInLogs",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "ServicePrincipalSignInLogs",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "ManagedIdentitySignInLogs",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "ProvisioningLogs",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "ADFSSignInLogs",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "RiskyUsers",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "RiskyServicePrincipals",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "UserRiskEvents",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      },
+      {
+        "enabled": true,
+        "category": "ServicePrincipalRiskEvents",
+        "retentionPolicy": {
+          "days": 0,
+          "enabled": false
+        }
+      }
+    ]
+  }
+}

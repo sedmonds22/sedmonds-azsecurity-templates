@@ -31,6 +31,30 @@ param uebaDataSources array = [
 @description('Toggle to ensure Microsoft Sentinel anomaly detection remains enabled.')
 param enableAnomalies bool = true
 
+@description('Toggle to configure Microsoft Entra ID diagnostic settings.')
+param enableEntraDiagnostics bool = true
+
+@description('Name of the Microsoft Entra ID diagnostic setting.')
+param entraDiagnosticName string = 'diag-entra'
+
+@description('Resource ID of the Log Analytics workspace for Entra diagnostics.')
+param entraWorkspaceResourceId string = ''
+
+@description('Log categories to enable for Microsoft Entra ID diagnostics.')
+param entraLogCategories array = [
+  'AuditLogs'
+  'SignInLogs'
+  'NonInteractiveUserSignInLogs'
+  'ServicePrincipalSignInLogs'
+  'ManagedIdentitySignInLogs'
+  'ProvisioningLogs'
+  'ADFSSignInLogs'
+  'RiskyUsers'
+  'RiskyServicePrincipals'
+  'UserRiskEvents'
+  'ServicePrincipalRiskEvents'
+]
+
 @description('Optional override for the Azure Security Insights service principal object ID if discovery via Microsoft Graph is restricted.')
 param sentinelAutomationPrincipalId string = ''
 
@@ -43,6 +67,24 @@ var shouldRunAutomationScript = deploySentinelAutomationScript
 var shouldConfigureEntitySetting = enableEntityBehavior && deployEntityBehaviorSetting && (useEntityBehaviorScript || !useEntityBehaviorScript)
 var shouldConfigureUebaSetting = enableUeba && deployUebaSetting
 var shouldConfigureAnomaliesSetting = enableAnomalies
+var shouldConfigureEntraDiagnostics = enableEntraDiagnostics && !empty(entraWorkspaceResourceId)
+
+// Entra diagnostic settings payload
+var entraLogsConfig = [for category in entraLogCategories: {
+  category: category
+  enabled: true
+  retentionPolicy: {
+    enabled: false
+    days: 0
+  }
+}]
+var entraDiagnosticPayload = string({
+  properties: {
+    workspaceId: entraWorkspaceResourceId
+    logs: entraLogsConfig
+  }
+})
+
 var entityBehaviorSettingResourceId = extensionResourceId(workspace.id, 'Microsoft.SecurityInsights/settings', 'EntityAnalytics')
 var entityBehaviorSettingPayload = string({
   kind: 'EntityAnalytics'
@@ -122,26 +164,42 @@ resource automationPrincipalLookup 'Microsoft.Resources/deploymentScripts@2020-1
       }
     ]
     scriptContent: '''
+      set -uo pipefail
+      
+      # Well-known Application ID for Azure Security Insights (constant across all tenants)
+      AZURE_SECURITY_INSIGHTS_APP_ID="98785600-1bb7-4fb9-b9fa-19afe2c8a360"
+      
       principalId="$SENTINEL_SP_OBJECT_ID_OVERRIDE"
+      
       if [ -z "$principalId" ]; then
-        principalId=$(az ad sp list --display-name "Azure Security Insights" --query "[0].id" -o tsv)
+        # Try to look up by App ID first (more reliable)
+        principalId=$(az ad sp show --id "$AZURE_SECURITY_INSIGHTS_APP_ID" --query "id" -o tsv 2>/dev/null || echo "")
+        
+        # Fallback to display name lookup
+        if [ -z "$principalId" ]; then
+          principalId=$(az ad sp list --display-name "Azure Security Insights" --query "[0].id" -o tsv 2>/dev/null || echo "")
+        fi
       fi
 
       if [ -z "$principalId" ]; then
-        echo "Azure Security Insights service principal not found" >&2
-        exit 1
+        echo "INFO: Could not discover Azure Security Insights service principal." >&2
+        echo "INFO: This is expected if the identity lacks Directory.Read.All permissions." >&2
+        echo "INFO: Sentinel automation role can be assigned manually later if needed." >&2
+        echo "INFO: Use the Finalize-SentinelAutomation.ps1 script after deployment." >&2
+        echo "{\"sentinelSpObjectId\": \"\", \"status\": \"skipped\"}" > $AZ_SCRIPTS_OUTPUT_PATH
+        exit 0
       fi
 
       scope="$SENTINEL_AUTOMATION_SCOPE"
       roleDefinitionId="$SENTINEL_AUTOMATION_ROLE_ID"
 
-      existingAssignment=$(az role assignment list --scope "$scope" --assignee-object-id "$principalId" --role "$roleDefinitionId" --query "[0].id" -o tsv)
+      existingAssignment=$(az role assignment list --scope "$scope" --assignee-object-id "$principalId" --role "$roleDefinitionId" --query "[0].id" -o tsv 2>/dev/null || echo "")
 
       if [ -z "$existingAssignment" ]; then
-        az role assignment create --assignee-object-id "$principalId" --assignee-principal-type ServicePrincipal --role "$roleDefinitionId" --scope "$scope" --only-show-errors
+        az role assignment create --assignee-object-id "$principalId" --assignee-principal-type ServicePrincipal --role "$roleDefinitionId" --scope "$scope" --only-show-errors 2>&1 || true
       fi
 
-      echo "{\"sentinelSpObjectId\": \"$principalId\"}" > $AZ_SCRIPTS_OUTPUT_PATH
+      echo "{\"sentinelSpObjectId\": \"$principalId\", \"status\": \"configured\"}" > $AZ_SCRIPTS_OUTPUT_PATH
     '''
   }
 }
@@ -374,6 +432,80 @@ resource anomaliesSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-0
   dependsOn: [
     sentinel
     automationScriptSentinelRoleAssignment
+  ]
+}
+
+// Microsoft Entra ID diagnostic settings deployment script
+resource entraDiagnosticsScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = if (shouldConfigureEntraDiagnostics) {
+  name: 'configure-entra-diagnostics-${uniqueString(resourceGroup().id)}'
+  location: location
+  kind: 'AzureCLI'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${automationScriptIdentity.id}': {}
+    }
+  }
+  properties: {
+    azCliVersion: '2.61.0'
+    cleanupPreference: 'OnExpiration'
+    retentionInterval: 'P1D'
+    timeout: 'PT10M'
+    environmentVariables: [
+      {
+        name: 'ENTRA_DIAGNOSTIC_NAME'
+        value: entraDiagnosticName
+      }
+      {
+        name: 'ENTRA_DIAGNOSTIC_PAYLOAD'
+        value: entraDiagnosticPayload
+      }
+    ]
+    scriptContent: '''
+      set -uo pipefail
+
+      diagnosticName="$ENTRA_DIAGNOSTIC_NAME"
+      apiVersion="2017-04-01-preview"
+      
+      # Write payload to file to avoid shell escaping issues
+      echo "$ENTRA_DIAGNOSTIC_PAYLOAD" > /tmp/payload.json
+
+      # Check if diagnostic setting already exists
+      existing=$(az rest --method get --url "https://management.azure.com/providers/microsoft.aadiam/diagnosticSettings/$diagnosticName?api-version=$apiVersion" --query name -o tsv --only-show-errors 2>/dev/null || echo "")
+
+      if [ -n "$existing" ]; then
+        echo "INFO: Entra diagnostic setting '$diagnosticName' already exists, updating..." >&2
+      fi
+
+      # Create or update the diagnostic setting
+      response=$(az rest --method put --url "https://management.azure.com/providers/microsoft.aadiam/diagnosticSettings/$diagnosticName?api-version=$apiVersion" --body @/tmp/payload.json --only-show-errors 2>&1) || rc=$?
+
+      if [ -n "${rc:-}" ] && [ "${rc:-0}" -ne 0 ]; then
+        # Check for permission errors - requires Global Admin or Security Admin
+        if echo "$response" | grep -qi "authorization\|forbidden\|global administrator\|security administrator\|permission"; then
+          echo "WARNING: Entra ID diagnostic settings require Global Administrator or Security Administrator role." >&2
+          echo "INFO: You can configure this manually in Azure AD > Diagnostic settings > Add diagnostic setting" >&2
+          echo "$response" >&2
+          exit 0
+        fi
+
+        # Check for conflict (already exists with different config)
+        if echo "$response" | grep -qi "conflict\|already exists"; then
+          echo "INFO: Entra diagnostic setting already exists." >&2
+          exit 0
+        fi
+
+        echo "ERROR: Failed to configure Entra ID diagnostics" >&2
+        echo "$response" >&2
+        exit ${rc:-1}
+      fi
+
+      echo "SUCCESS: Entra ID diagnostic setting '$diagnosticName' configured" >&2
+      echo '{"status":"configured","name":"'"$diagnosticName"'"}' > $AZ_SCRIPTS_OUTPUT_PATH
+    '''
+  }
+  dependsOn: [
+    automationScriptIdentityRoleAssignment
   ]
 }
 

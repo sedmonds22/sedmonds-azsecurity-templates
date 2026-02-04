@@ -1,0 +1,10 @@
+{
+  "kind": "Ueba",
+  "properties": {
+    "dataSources": [
+      "SigninLogs",
+      "AuditLogs",
+      "AzureActivity"
+    ]
+  }
+}

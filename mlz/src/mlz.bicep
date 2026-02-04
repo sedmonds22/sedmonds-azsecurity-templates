@@ -197,13 +197,8 @@ param entraLogCategories array = [
   'RiskyUsers'
   'RiskyServicePrincipals'
   'UserRiskEvents'
+  'ServicePrincipalRiskEvents'
 ]
-
-@description('Retention policy configuration for Microsoft Entra ID diagnostics.')
-param entraRetentionPolicy object = {
-  enabled: false
-  days: 0
-}
 
 var deploymentTenantId = tenant().tenantId
 
@@ -999,6 +994,9 @@ module monitoring 'modules/monitoring.bicep' = {
     uebaDataSources: uebaDataSources
     enableAnomalies: enableAnomalies
     deploySentinelAutomationScript: deploySentinelAutomationScript
+    enableEntraDiagnostics: enableEntraDiagnostics
+    entraDiagnosticName: entraDiagnosticName
+    entraLogCategories: entraLogCategories
     entraConnectorDataTypeStates: entraDataConnectorLogStates
     sentinelAutomationPrincipalId: sentinelAutomationPrincipalId
     location: location
@@ -1014,18 +1012,6 @@ module monitoring 'modules/monitoring.bicep' = {
   dependsOn: [
     securityResourceGroup
   ]
-}
-
-module entraDiagnostics '../../bicep/tenant/entra-diagnostic-settings.bicep' = if (enableEntraDiagnostics) {
-  name: 'deploy-entra-diagnostics-${deploymentNameSuffix}'
-  scope: tenant()
-  params: {
-    diagnosticSettingName: entraDiagnosticName
-    workspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
-    logCategories: entraLogCategories
-    retentionPolicy: entraRetentionPolicy
-    location: location
-  }
 }
 
 module sentinelContent 'modules/sentinel-content.bicep' = if (deploySentinel) {
