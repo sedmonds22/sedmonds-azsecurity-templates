@@ -124,6 +124,9 @@ param deployPolicy bool = false
 @description('When set to "true", enables Microsoft Sentinel within the Log Analytics Workspace created in this deployment. Default value = "false".')
 param deploySentinel bool = false
 
+@description('Deploy standalone workbooks via Bicep. Set to false when Content Hub solutions already provide workbooks (default).')
+param deploySentinelWorkbooks bool = false
+
 @description('Optional override for the dedicated resource group name to create for Microsoft Sentinel resources when deploySentinel is true. Leave blank to use the MLZ naming convention (security in the 4th naming segment).')
 param sentinelResourceGroupName string = ''
 
@@ -1040,7 +1043,7 @@ module sentinelContent 'modules/sentinel-content.bicep' = if (deploySentinel) {
   ]
 }
 
-module sentinelWorkbooks 'modules/sentinel-workbooks.bicep' = if (deploySentinel) {
+module sentinelWorkbooks 'modules/sentinel-workbooks.bicep' = if (deploySentinel && deploySentinelWorkbooks) {
   name: 'deploy-sentinel-workbooks-${deploymentNameSuffix}'
   scope: subscription(operationsSubscriptionId)
   params: {

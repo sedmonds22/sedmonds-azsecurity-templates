@@ -33,6 +33,9 @@ param deployAzureActivitySolution bool = true
 @description('Toggle to install the Microsoft Entra ID Microsoft Sentinel solution when Microsoft Sentinel is enabled.')
 param deployMicrosoftEntraSolution bool = true
 
+@description('Deploy custom workbooks in addition to Content Hub solutions. Set to false to avoid duplicate workbooks.')
+param deployCustomWorkbooks bool = false
+
 var workspaceResourceId = resourceId(workspaceSubscriptionId, workspaceResourceGroupName, 'Microsoft.OperationalInsights/workspaces', workspaceName)
 
 module azureActivitySolution '../../../content/packages/azure-activity/mainTemplate.json' = if (deployAzureActivitySolution) {
@@ -47,7 +50,7 @@ module azureActivitySolution '../../../content/packages/azure-activity/mainTempl
   }
 }
 
-module azureActivityWorkbook '../../../custom-workbooks/deploy/AzureActivity.workbook.template.json' = if (deployAzureActivitySolution) {
+module azureActivityWorkbook '../../../custom-workbooks/deploy/AzureActivity.workbook.template.json' = if (deployAzureActivitySolution && deployCustomWorkbooks) {
   name: 'deploy-workbook-azure-activity-${deploymentNameSuffix}'
   scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
   params: {
@@ -57,7 +60,7 @@ module azureActivityWorkbook '../../../custom-workbooks/deploy/AzureActivity.wor
   }
 }
 
-module azureServiceHealthWorkbook '../../../custom-workbooks/deploy/AzureServiceHealthWorkbook.workbook.template.json' = if (deployAzureActivitySolution) {
+module azureServiceHealthWorkbook '../../../custom-workbooks/deploy/AzureServiceHealthWorkbook.workbook.template.json' = if (deployAzureActivitySolution && deployCustomWorkbooks) {
   name: 'deploy-workbook-azure-service-health-${deploymentNameSuffix}'
   scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
   params: {
@@ -79,7 +82,7 @@ module microsoftEntraSolution '../../../content/packages/microsoft-entra-id/main
   }
 }
 
-module microsoftEntraAuditWorkbook '../../../custom-workbooks/deploy/AzureActiveDirectoryAuditLogs.workbook.template.json' = if (deployMicrosoftEntraSolution) {
+module microsoftEntraAuditWorkbook '../../../custom-workbooks/deploy/AzureActiveDirectoryAuditLogs.workbook.template.json' = if (deployMicrosoftEntraSolution && deployCustomWorkbooks) {
   name: 'deploy-workbook-entra-audit-${deploymentNameSuffix}'
   scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
   params: {
@@ -89,7 +92,7 @@ module microsoftEntraAuditWorkbook '../../../custom-workbooks/deploy/AzureActive
   }
 }
 
-module microsoftEntraSigninWorkbook '../../../custom-workbooks/deploy/AzureActiveDirectorySignins.workbook.template.json' = if (deployMicrosoftEntraSolution) {
+module microsoftEntraSigninWorkbook '../../../custom-workbooks/deploy/AzureActiveDirectorySignins.workbook.template.json' = if (deployMicrosoftEntraSolution && deployCustomWorkbooks) {
   name: 'deploy-workbook-entra-signin-${deploymentNameSuffix}'
   scope: resourceGroup(workspaceSubscriptionId, workspaceResourceGroupName)
   params: {

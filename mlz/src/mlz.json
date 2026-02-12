@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "12229508583442947915"
+      "templateHash": "14200996221003974580"
     }
   },
   "parameters": {
@@ -206,6 +206,13 @@
       "defaultValue": false,
       "metadata": {
         "description": "When set to \"true\", enables Microsoft Sentinel within the Log Analytics Workspace created in this deployment. Default value = \"false\"."
+      }
+    },
+    "deploySentinelWorkbooks": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Deploy standalone workbooks via Bicep. Set to false when Content Hub solutions already provide workbooks (default)."
       }
     },
     "sentinelResourceGroupName": {
@@ -6299,7 +6306,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "15553070380017629893"
+              "templateHash": "16944549764218179266"
             }
           },
           "parameters": {
@@ -6373,6 +6380,13 @@
               "defaultValue": true,
               "metadata": {
                 "description": "Toggle to install the Microsoft Entra ID Microsoft Sentinel solution when Microsoft Sentinel is enabled."
+              }
+            },
+            "deployCustomWorkbooks": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Deploy custom workbooks in addition to Content Hub solutions. Set to false to avoid duplicate workbooks."
               }
             }
           },
@@ -10242,7 +10256,7 @@
               }
             },
             {
-              "condition": "[parameters('deployAzureActivitySolution')]",
+              "condition": "[and(parameters('deployAzureActivitySolution'), parameters('deployCustomWorkbooks'))]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-workbook-azure-activity-{0}', parameters('deploymentNameSuffix'))]",
@@ -10638,7 +10652,7 @@
               }
             },
             {
-              "condition": "[parameters('deployAzureActivitySolution')]",
+              "condition": "[and(parameters('deployAzureActivitySolution'), parameters('deployCustomWorkbooks'))]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-workbook-azure-service-health-{0}', parameters('deploymentNameSuffix'))]",
@@ -28138,7 +28152,7 @@
               }
             },
             {
-              "condition": "[parameters('deployMicrosoftEntraSolution')]",
+              "condition": "[and(parameters('deployMicrosoftEntraSolution'), parameters('deployCustomWorkbooks'))]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-workbook-entra-audit-{0}', parameters('deploymentNameSuffix'))]",
@@ -28578,7 +28592,7 @@
               }
             },
             {
-              "condition": "[parameters('deployMicrosoftEntraSolution')]",
+              "condition": "[and(parameters('deployMicrosoftEntraSolution'), parameters('deployCustomWorkbooks'))]",
               "type": "Microsoft.Resources/deployments",
               "apiVersion": "2025-04-01",
               "name": "[format('deploy-workbook-entra-signin-{0}', parameters('deploymentNameSuffix'))]",
@@ -29992,7 +30006,7 @@
       ]
     },
     {
-      "condition": "[parameters('deploySentinel')]",
+      "condition": "[and(parameters('deploySentinel'), parameters('deploySentinelWorkbooks'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "[format('deploy-sentinel-workbooks-{0}', parameters('deploymentNameSuffix'))]",
