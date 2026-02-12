@@ -23,6 +23,8 @@ param enableEntraIdDataConnector bool = true
 param entraConnectorDataTypeStates object
 param tenantId string
 param sentinelAutomationPrincipalId string = ''
+param deployAnalyticRules bool = true
+param analyticRulesManifestUrl string = 'https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/content/analytic-rules-manifest.json'
 param location string
 param logAnalyticsWorkspaceCappingDailyQuotaGb int
 param logAnalyticsWorkspaceRetentionInDays int
@@ -148,6 +150,21 @@ module sentinelConnectors 'sentinel-connectors.bicep' = if (deploySentinel && en
   }
   dependsOn: [
     sentinelSettings
+  ]
+}
+
+module sentinelAnalyticRules 'sentinel-analytic-rules.bicep' = if (deploySentinel && deployAnalyticRules) {
+  name: 'deploy-sentinel-analytic-rules-${deploymentNameSuffix}'
+  scope: resourceGroup(tier.subscriptionId, targetResourceGroupName)
+  params: {
+    workspaceName: targetWorkspaceName
+    location: location
+    deployAnalyticRules: deployAnalyticRules
+    analyticRulesManifestUrl: analyticRulesManifestUrl
+  }
+  dependsOn: [
+    sentinelConnectors
+    logAnalyticsWorkspace
   ]
 }
 

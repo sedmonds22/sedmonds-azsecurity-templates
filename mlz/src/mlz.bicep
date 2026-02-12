@@ -173,6 +173,12 @@ param deploySentinelAutomationScript bool = true
 @description('Object ID of the Azure Security Insights service principal so Sentinel automation can run playbooks in the operations resource group.')
 param sentinelAutomationPrincipalId string = ''
 
+@description('Toggle to deploy Content Hub analytic rules as active scheduled rules.')
+param deployAnalyticRules bool = true
+
+@description('URL to the analytic rules manifest JSON file.')
+param analyticRulesManifestUrl string = 'https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/content/analytic-rules-manifest.json'
+
 @description('Desired state for each Microsoft Entra ID log type exposed by the Microsoft Sentinel data connector.')
 param entraDataConnectorLogStates object = {
   SignInLogs: 'Enabled'
@@ -1010,6 +1016,8 @@ module monitoring 'modules/monitoring.bicep' = {
     enableEntraIdDataConnector: enableEntraIdDataConnector
     entraConnectorDataTypeStates: entraDataConnectorLogStates
     sentinelAutomationPrincipalId: sentinelAutomationPrincipalId
+    deployAnalyticRules: deployAnalyticRules
+    analyticRulesManifestUrl: analyticRulesManifestUrl
     location: location
     logAnalyticsWorkspaceCappingDailyQuotaGb: logAnalyticsWorkspaceCappingDailyQuotaGb
     logAnalyticsWorkspaceRetentionInDays: logAnalyticsWorkspaceRetentionInDays

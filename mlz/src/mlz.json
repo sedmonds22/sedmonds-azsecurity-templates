@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "5796112515856812806"
+      "templateHash": "9202280114640123801"
     }
   },
   "parameters": {
@@ -315,6 +315,20 @@
       "defaultValue": "",
       "metadata": {
         "description": "Object ID of the Azure Security Insights service principal so Sentinel automation can run playbooks in the operations resource group."
+      }
+    },
+    "deployAnalyticRules": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Toggle to deploy Content Hub analytic rules as active scheduled rules."
+      }
+    },
+    "analyticRulesManifestUrl": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/content/analytic-rules-manifest.json",
+      "metadata": {
+        "description": "URL to the analytic rules manifest JSON file."
       }
     },
     "entraDataConnectorLogStates": {
@@ -5005,6 +5019,12 @@
           "sentinelAutomationPrincipalId": {
             "value": "[parameters('sentinelAutomationPrincipalId')]"
           },
+          "deployAnalyticRules": {
+            "value": "[parameters('deployAnalyticRules')]"
+          },
+          "analyticRulesManifestUrl": {
+            "value": "[parameters('analyticRulesManifestUrl')]"
+          },
           "location": {
             "value": "[parameters('location')]"
           },
@@ -5040,7 +5060,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "1725461536458941804"
+              "templateHash": "18090145373422710998"
             }
           },
           "parameters": {
@@ -5106,6 +5126,14 @@
             "sentinelAutomationPrincipalId": {
               "type": "string",
               "defaultValue": ""
+            },
+            "deployAnalyticRules": {
+              "type": "bool",
+              "defaultValue": true
+            },
+            "analyticRulesManifestUrl": {
+              "type": "string",
+              "defaultValue": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/content/analytic-rules-manifest.json"
             },
             "location": {
               "type": "string"
@@ -5643,7 +5671,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "13330949676184667854"
+                      "templateHash": "11507205704217540273"
                     }
                   },
                   "parameters": {
@@ -5771,20 +5799,6 @@
                       "defaultValue": true,
                       "metadata": {
                         "description": "Toggle to run the deployment script that discovers and assigns the Sentinel automation service principal. Disable when you plan to handle the automation role manually later."
-                      }
-                    },
-                    "deployAnalyticRules": {
-                      "type": "bool",
-                      "defaultValue": true,
-                      "metadata": {
-                        "description": "Toggle to deploy Content Hub analytic rules as active scheduled rules."
-                      }
-                    },
-                    "analyticRulesManifestUrl": {
-                      "type": "string",
-                      "defaultValue": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/content/analytic-rules-manifest.json",
-                      "metadata": {
-                        "description": "URL to the analytic rules manifest JSON file. Defaults to the GitHub raw URL."
                       }
                     }
                   },
@@ -6080,50 +6094,6 @@
                         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]",
                         "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, format('sentinel-script-{0}', uniqueString(resourceGroup().id)), 'automation-script-rbac'))]"
                       ]
-                    },
-                    {
-                      "condition": "[parameters('deployAnalyticRules')]",
-                      "type": "Microsoft.Resources/deploymentScripts",
-                      "apiVersion": "2020-10-01",
-                      "name": "[format('deploy-analytic-rules-{0}', uniqueString(resourceGroup().id))]",
-                      "location": "[parameters('location')]",
-                      "kind": "AzureCLI",
-                      "identity": {
-                        "type": "UserAssigned",
-                        "userAssignedIdentities": {
-                          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id))))]": {}
-                        }
-                      },
-                      "properties": {
-                        "azCliVersion": "2.61.0",
-                        "cleanupPreference": "OnExpiration",
-                        "retentionInterval": "P1D",
-                        "timeout": "PT30M",
-                        "environmentVariables": [
-                          {
-                            "name": "WORKSPACE_NAME",
-                            "value": "[parameters('workspaceName')]"
-                          },
-                          {
-                            "name": "RESOURCE_GROUP",
-                            "value": "[resourceGroup().name]"
-                          },
-                          {
-                            "name": "SUBSCRIPTION_ID",
-                            "value": "[subscription().subscriptionId]"
-                          },
-                          {
-                            "name": "MANIFEST_URL",
-                            "value": "[parameters('analyticRulesManifestUrl')]"
-                          }
-                        ],
-                        "scriptContent": "      set -uo pipefail\r\n\r\n      workspaceName=\"$WORKSPACE_NAME\"\r\n      resourceGroup=\"$RESOURCE_GROUP\"\r\n      subscriptionId=\"$SUBSCRIPTION_ID\"\r\n      manifestUrl=\"$MANIFEST_URL\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n\r\n      echo \"INFO: Fetching analytic rules manifest from $manifestUrl\"\r\n      manifest=$(wget -qO- \"$manifestUrl\") || {\r\n        echo \"ERROR: Failed to fetch manifest from $manifestUrl\" >&2\r\n        exit 1\r\n      }\r\n\r\n      ruleCount=$(echo \"$manifest\" | jq -r '.ruleCount // 0')\r\n      echo \"INFO: Found $ruleCount rules to deploy\"\r\n\r\n      successCount=0\r\n      skipCount=0\r\n      errorCount=0\r\n\r\n      # Process each rule\r\n      echo \"$manifest\" | jq -c '.rules[]' | while read -r rule; do\r\n        ruleId=$(echo \"$rule\" | jq -r '.id')\r\n        ruleName=$(echo \"$rule\" | jq -r '.name')\r\n        kind=$(echo \"$rule\" | jq -r '.kind')\r\n\r\n        # Build the resource URL\r\n        resourceUrl=\"https://management.azure.com/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.OperationalInsights/workspaces/$workspaceName/providers/Microsoft.SecurityInsights/alertRules/$ruleId?api-version=$apiVersion\"\r\n\r\n        # Check if rule already exists\r\n        existingRule=$(az rest --method get --url \"$resourceUrl\" --only-show-errors 2>/dev/null) && ruleExists=true || ruleExists=false\r\n\r\n        if [ \"$ruleExists\" = \"true\" ]; then\r\n          echo \"SKIP: Rule '$ruleName' already exists\"\r\n          skipCount=$((skipCount + 1))\r\n          continue\r\n        fi\r\n\r\n        # Build the request payload based on rule kind\r\n        if [ \"$kind\" = \"NRT\" ]; then\r\n          payload=$(echo \"$rule\" | jq -c '{\r\n            kind: \"NRT\",\r\n            properties: {\r\n              displayName: .name,\r\n              description: .description,\r\n              enabled: .enabled,\r\n              severity: .severity,\r\n              query: .query,\r\n              tactics: .tactics,\r\n              techniques: .techniques,\r\n              entityMappings: .entityMappings,\r\n              suppressionDuration: \"PT5H\",\r\n              suppressionEnabled: false\r\n            }\r\n          }')\r\n        else\r\n          payload=$(echo \"$rule\" | jq -c '{\r\n            kind: \"Scheduled\",\r\n            properties: {\r\n              displayName: .name,\r\n              description: .description,\r\n              enabled: .enabled,\r\n              severity: .severity,\r\n              query: .query,\r\n              queryFrequency: .queryFrequency,\r\n              queryPeriod: .queryPeriod,\r\n              triggerOperator: .triggerOperator,\r\n              triggerThreshold: .triggerThreshold,\r\n              tactics: .tactics,\r\n              techniques: .techniques,\r\n              entityMappings: .entityMappings,\r\n              suppressionDuration: \"PT5H\",\r\n              suppressionEnabled: false\r\n            }\r\n          }')\r\n        fi\r\n\r\n        # Write payload to temp file\r\n        echo \"$payload\" > /tmp/rule_payload.json\r\n\r\n        # Create the rule\r\n        response=$(az rest --method put --url \"$resourceUrl\" --body @/tmp/rule_payload.json --headers \"Content-Type=application/json\" --only-show-errors 2>&1) && rc=0 || rc=$?\r\n\r\n        if [ $rc -eq 0 ]; then\r\n          echo \"SUCCESS: Created rule '$ruleName'\"\r\n          successCount=$((successCount + 1))\r\n        else\r\n          # Check if it's a data connector dependency error (common, not fatal)\r\n          if echo \"$response\" | grep -qi \"BadRequest\\|data connector\\|table.*not found\\|table does not exist\"; then\r\n            echo \"SKIP: Rule '$ruleName' - required data connector not enabled\"\r\n            skipCount=$((skipCount + 1))\r\n          else\r\n            echo \"ERROR: Failed to create rule '$ruleName': $response\" >&2\r\n            errorCount=$((errorCount + 1))\r\n          fi\r\n        fi\r\n      done\r\n\r\n      echo \"\"\r\n      echo \"==========================================\"\r\n      echo \"Analytic Rules Deployment Summary:\"\r\n      echo \"  Total rules: $ruleCount\"\r\n      echo \"  Successfully created: $successCount\"\r\n      echo \"  Skipped (existing/no data): $skipCount\"\r\n      echo \"  Errors: $errorCount\"\r\n      echo \"==========================================\"\r\n\r\n      # Output results\r\n      echo \"{\\\"total\\\":$ruleCount,\\\"created\\\":$successCount,\\\"skipped\\\":$skipCount,\\\"errors\\\":$errorCount}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n\r\n      # Don't fail the deployment for rule errors - rules may need data connectors enabled first\r\n      exit 0\r\n    "
-                      },
-                      "dependsOn": [
-                        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('sentinel-script-{0}', uniqueString(resourceGroup().id)))]",
-                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), format('sentinel-script-{0}', uniqueString(resourceGroup().id)), 'automation-script-sentinel-rbac'))]",
-                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.SecurityInsights/onboardingStates', 'default')]"
-                      ]
                     }
                   ],
                   "outputs": {
@@ -6290,6 +6260,150 @@
               },
               "dependsOn": [
                 "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('configure-sentinel-settings-{0}', parameters('deploymentNameSuffix')))]"
+              ]
+            },
+            {
+              "condition": "[and(parameters('deploySentinel'), parameters('deployAnalyticRules'))]",
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "[format('deploy-sentinel-analytic-rules-{0}', parameters('deploymentNameSuffix'))]",
+              "subscriptionId": "[parameters('tier').subscriptionId]",
+              "resourceGroup": "[variables('targetResourceGroupName')]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "workspaceName": {
+                    "value": "[variables('targetWorkspaceName')]"
+                  },
+                  "location": {
+                    "value": "[parameters('location')]"
+                  },
+                  "deployAnalyticRules": {
+                    "value": "[parameters('deployAnalyticRules')]"
+                  },
+                  "analyticRulesManifestUrl": {
+                    "value": "[parameters('analyticRulesManifestUrl')]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.39.26.7824",
+                      "templateHash": "6327911824359486347"
+                    }
+                  },
+                  "parameters": {
+                    "workspaceName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Name of the Log Analytics workspace where Microsoft Sentinel is enabled."
+                      }
+                    },
+                    "location": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Azure region used for deployment scripts."
+                      }
+                    },
+                    "deployAnalyticRules": {
+                      "type": "bool",
+                      "defaultValue": true,
+                      "metadata": {
+                        "description": "Toggle to deploy Content Hub analytic rules as active scheduled rules."
+                      }
+                    },
+                    "analyticRulesManifestUrl": {
+                      "type": "string",
+                      "defaultValue": "https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/content/analytic-rules-manifest.json",
+                      "metadata": {
+                        "description": "URL to the analytic rules manifest JSON file."
+                      }
+                    }
+                  },
+                  "resources": [
+                    {
+                      "condition": "[parameters('deployAnalyticRules')]",
+                      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+                      "apiVersion": "2023-01-31",
+                      "name": "[format('id-analytic-rules-{0}', uniqueString(resourceGroup().id))]",
+                      "location": "[parameters('location')]"
+                    },
+                    {
+                      "condition": "[parameters('deployAnalyticRules')]",
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[format('Microsoft.OperationalInsights/workspaces/{0}', parameters('workspaceName'))]",
+                      "name": "[guid(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-analytic-rules-{0}', uniqueString(resourceGroup().id))), 'ab8e14d6-4a74-4a29-9ba8-549422addade')]",
+                      "properties": {
+                        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-analytic-rules-{0}', uniqueString(resourceGroup().id))), '2023-01-31').principalId]",
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ab8e14d6-4a74-4a29-9ba8-549422addade')]",
+                        "principalType": "ServicePrincipal"
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-analytic-rules-{0}', uniqueString(resourceGroup().id)))]"
+                      ]
+                    },
+                    {
+                      "condition": "[parameters('deployAnalyticRules')]",
+                      "type": "Microsoft.Resources/deploymentScripts",
+                      "apiVersion": "2020-10-01",
+                      "name": "[format('deploy-analytic-rules-{0}', uniqueString(resourceGroup().id))]",
+                      "location": "[parameters('location')]",
+                      "kind": "AzureCLI",
+                      "identity": {
+                        "type": "UserAssigned",
+                        "userAssignedIdentities": {
+                          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-analytic-rules-{0}', uniqueString(resourceGroup().id))))]": {}
+                        }
+                      },
+                      "properties": {
+                        "azCliVersion": "2.61.0",
+                        "cleanupPreference": "OnExpiration",
+                        "retentionInterval": "P1D",
+                        "timeout": "PT30M",
+                        "environmentVariables": [
+                          {
+                            "name": "WORKSPACE_NAME",
+                            "value": "[parameters('workspaceName')]"
+                          },
+                          {
+                            "name": "RESOURCE_GROUP",
+                            "value": "[resourceGroup().name]"
+                          },
+                          {
+                            "name": "SUBSCRIPTION_ID",
+                            "value": "[subscription().subscriptionId]"
+                          },
+                          {
+                            "name": "MANIFEST_URL",
+                            "value": "[parameters('analyticRulesManifestUrl')]"
+                          }
+                        ],
+                        "scriptContent": "      set -uo pipefail\r\n\r\n      workspaceName=\"$WORKSPACE_NAME\"\r\n      resourceGroup=\"$RESOURCE_GROUP\"\r\n      subscriptionId=\"$SUBSCRIPTION_ID\"\r\n      manifestUrl=\"$MANIFEST_URL\"\r\n      apiVersion=\"2024-01-01-preview\"\r\n\r\n      echo \"INFO: Fetching analytic rules manifest from $manifestUrl\"\r\n      manifest=$(wget -qO- \"$manifestUrl\") || {\r\n        echo \"ERROR: Failed to fetch manifest from $manifestUrl\" >&2\r\n        exit 1\r\n      }\r\n\r\n      ruleCount=$(echo \"$manifest\" | jq -r '.ruleCount // 0')\r\n      echo \"INFO: Found $ruleCount rules to deploy\"\r\n\r\n      successCount=0\r\n      skipCount=0\r\n      errorCount=0\r\n\r\n      # Process each rule\r\n      echo \"$manifest\" | jq -c '.rules[]' | while read -r rule; do\r\n        ruleId=$(echo \"$rule\" | jq -r '.id')\r\n        ruleName=$(echo \"$rule\" | jq -r '.name')\r\n        kind=$(echo \"$rule\" | jq -r '.kind')\r\n\r\n        # Build the resource URL\r\n        resourceUrl=\"https://management.azure.com/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.OperationalInsights/workspaces/$workspaceName/providers/Microsoft.SecurityInsights/alertRules/$ruleId?api-version=$apiVersion\"\r\n\r\n        # Check if rule already exists\r\n        existingRule=$(az rest --method get --url \"$resourceUrl\" --only-show-errors 2>/dev/null) && ruleExists=true || ruleExists=false\r\n\r\n        if [ \"$ruleExists\" = \"true\" ]; then\r\n          echo \"SKIP: Rule '$ruleName' already exists\"\r\n          skipCount=$((skipCount + 1))\r\n          continue\r\n        fi\r\n\r\n        # Build the request payload based on rule kind\r\n        if [ \"$kind\" = \"NRT\" ]; then\r\n          payload=$(echo \"$rule\" | jq -c '{\r\n            kind: \"NRT\",\r\n            properties: {\r\n              displayName: .name,\r\n              description: .description,\r\n              enabled: .enabled,\r\n              severity: .severity,\r\n              query: .query,\r\n              tactics: .tactics,\r\n              techniques: .techniques,\r\n              entityMappings: .entityMappings,\r\n              suppressionDuration: \"PT5H\",\r\n              suppressionEnabled: false\r\n            }\r\n          }')\r\n        else\r\n          payload=$(echo \"$rule\" | jq -c '{\r\n            kind: \"Scheduled\",\r\n            properties: {\r\n              displayName: .name,\r\n              description: .description,\r\n              enabled: .enabled,\r\n              severity: .severity,\r\n              query: .query,\r\n              queryFrequency: .queryFrequency,\r\n              queryPeriod: .queryPeriod,\r\n              triggerOperator: .triggerOperator,\r\n              triggerThreshold: .triggerThreshold,\r\n              tactics: .tactics,\r\n              techniques: .techniques,\r\n              entityMappings: .entityMappings,\r\n              suppressionDuration: \"PT5H\",\r\n              suppressionEnabled: false\r\n            }\r\n          }')\r\n        fi\r\n\r\n        # Write payload to temp file\r\n        echo \"$payload\" > /tmp/rule_payload.json\r\n\r\n        # Create the rule\r\n        response=$(az rest --method put --url \"$resourceUrl\" --body @/tmp/rule_payload.json --headers \"Content-Type=application/json\" --only-show-errors 2>&1) && rc=0 || rc=$?\r\n\r\n        if [ $rc -eq 0 ]; then\r\n          echo \"SUCCESS: Created rule '$ruleName'\"\r\n          successCount=$((successCount + 1))\r\n        else\r\n          # Check if it's a data connector dependency error (common, not fatal)\r\n          if echo \"$response\" | grep -qi \"BadRequest\\|data connector\\|table.*not found\\|table does not exist\"; then\r\n            echo \"SKIP: Rule '$ruleName' - required data connector not enabled\"\r\n            skipCount=$((skipCount + 1))\r\n          else\r\n            echo \"ERROR: Failed to create rule '$ruleName': $response\" >&2\r\n            errorCount=$((errorCount + 1))\r\n          fi\r\n        fi\r\n      done\r\n\r\n      echo \"\"\r\n      echo \"==========================================\"\r\n      echo \"Analytic Rules Deployment Summary:\"\r\n      echo \"  Total rules: $ruleCount\"\r\n      echo \"  Successfully created: $successCount\"\r\n      echo \"  Skipped (existing/no data): $skipCount\"\r\n      echo \"  Errors: $errorCount\"\r\n      echo \"==========================================\"\r\n\r\n      # Output results\r\n      echo \"{\\\"total\\\":$ruleCount,\\\"created\\\":$successCount,\\\"skipped\\\":$skipCount,\\\"errors\\\":$errorCount}\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n\r\n      # Don't fail the deployment for rule errors - rules may need data connectors enabled first\r\n      exit 0\r\n    "
+                      },
+                      "dependsOn": [
+                        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-analytic-rules-{0}', uniqueString(resourceGroup().id)))]",
+                        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-analytic-rules-{0}', uniqueString(resourceGroup().id))), 'ab8e14d6-4a74-4a29-9ba8-549422addade'))]"
+                      ]
+                    }
+                  ],
+                  "outputs": {
+                    "analyticRulesDeployed": {
+                      "type": "bool",
+                      "value": "[parameters('deployAnalyticRules')]"
+                    }
+                  }
+                }
+              },
+              "dependsOn": [
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('deploy-law-{0}', parameters('deploymentNameSuffix')))]",
+                "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', parameters('tier').subscriptionId, variables('targetResourceGroupName')), 'Microsoft.Resources/deployments', format('configure-sentinel-connectors-{0}', parameters('deploymentNameSuffix')))]"
               ]
             }
           ],
