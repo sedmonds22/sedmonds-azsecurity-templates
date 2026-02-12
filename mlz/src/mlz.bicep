@@ -133,14 +133,17 @@ param enableEntityBehavior bool = true
 @description('Skip provisioning the Entity Behavior Analytics setting when it already exists to avoid concurrency conflicts.')
 param deployEntityBehaviorSetting bool = true
 
-@description('Use the deployment script to upsert Entity Behavior settings. Disable for brand new workspaces to provision the resource directly.')
-param useEntityBehaviorScript bool = true
+@description('Use the deployment script to upsert Entity Behavior settings. Set to false to use native Bicep resource (recommended for new deployments).')
+param useEntityBehaviorScript bool = false
 
 @description('Toggle to configure UEBA data sources so fusion models have full context.')
 param enableUeba bool = true
 
 @description('Skip provisioning the UEBA setting when it already exists to avoid concurrency conflicts.')
 param deployUebaSetting bool = true
+
+@description('Use the deployment script to upsert UEBA. Set to false to use native Bicep resource (recommended for new deployments).')
+param useUebaScript bool = false
 
 @description('Data sources that enrich UEBA insights.')
 param uebaDataSources array = [
@@ -154,6 +157,9 @@ param enableAnomalies bool = true
 
 @description('Toggle to configure Azure Activity ingestion for Microsoft Sentinel by deploying Activity Log diagnostic settings to the Log Analytics workspace.')
 param enableAzureActivityDataConnector bool = true
+
+@description('Toggle to deploy and configure the Microsoft Entra ID data connector for Microsoft Sentinel.')
+param enableEntraIdDataConnector bool = true
 
 @description('Optional name to apply to the Activity Log diagnostic setting in each subscription. Leave blank to use the default naming in the activity-log-diagnostic-settings module.')
 param azureActivityDiagnosticSettingName string = ''
@@ -991,12 +997,14 @@ module monitoring 'modules/monitoring.bicep' = {
     useEntityBehaviorScript: useEntityBehaviorScript
     enableUeba: enableUeba
     deployUebaSetting: deployUebaSetting
+    useUebaScript: useUebaScript
     uebaDataSources: uebaDataSources
     enableAnomalies: enableAnomalies
     deploySentinelAutomationScript: deploySentinelAutomationScript
     enableEntraDiagnostics: enableEntraDiagnostics
     entraDiagnosticName: entraDiagnosticName
     entraLogCategories: entraLogCategories
+    enableEntraIdDataConnector: enableEntraIdDataConnector
     entraConnectorDataTypeStates: entraDataConnectorLogStates
     sentinelAutomationPrincipalId: sentinelAutomationPrincipalId
     location: location
@@ -1029,6 +1037,25 @@ module sentinelContent 'modules/sentinel-content.bicep' = if (deploySentinel) {
   }
   dependsOn: [
     monitoring
+  ]
+}
+
+module sentinelWorkbooks 'modules/sentinel-workbooks.bicep' = if (deploySentinel) {
+  name: 'deploy-sentinel-workbooks-${deploymentNameSuffix}'
+  scope: subscription(operationsSubscriptionId)
+  params: {
+    workspaceName: securityNamingConvention.outputs.names.logAnalyticsWorkspace
+    location: location
+    workspaceResourceGroupName: securityResourceGroup.outputs.name
+    workspaceSubscriptionId: operationsSubscriptionId
+    azureActivityWorkbookName: azureActivityWorkbookName
+    azureServiceHealthWorkbookName: azureServiceHealthWorkbookName
+    entraAuditWorkbookName: entraAuditWorkbookName
+    entraSigninWorkbookName: entraSigninWorkbookName
+  }
+  dependsOn: [
+    monitoring
+    sentinelContent
   ]
 }
 

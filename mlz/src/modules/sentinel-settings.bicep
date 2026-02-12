@@ -12,14 +12,17 @@ param enableEntityBehavior bool = true
 @description('Skip provisioning the Entity Behavior Analytics setting when it already exists to avoid concurrency conflicts.')
 param deployEntityBehaviorSetting bool = true
 
-@description('Use the deployment script (recommended when the setting already exists) to upsert Entity Behavior. Disable for brand new workspaces to provision the resource directly.')
-param useEntityBehaviorScript bool = true
+@description('Use the deployment script to upsert Entity Behavior. Set to false to use native Bicep resource (recommended for new deployments).')
+param useEntityBehaviorScript bool = false
 
 @description('Toggle to configure UEBA data sources and ensure they participate in the ML fusion models.')
 param enableUeba bool = true
 
 @description('Skip provisioning the UEBA setting when it already exists to avoid concurrency conflicts.')
 param deployUebaSetting bool = true
+
+@description('Use the deployment script to upsert UEBA. Set to false to use native Bicep resource (recommended for new deployments).')
+param useUebaScript bool = false
 
 @description('Data sources that enrich UEBA insights.')
 param uebaDataSources array = [
@@ -64,9 +67,14 @@ param deploySentinelAutomationScript bool = true
 var sentinelAutomationContributorRoleDefinitionGuid = 'f4c81013-99ee-4d62-a7ee-b3f1f648599a'
 var workspaceContributorRoleDefinitionGuid = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
 var shouldRunAutomationScript = deploySentinelAutomationScript
-var shouldConfigureEntitySetting = enableEntityBehavior && deployEntityBehaviorSetting && (useEntityBehaviorScript || !useEntityBehaviorScript)
-var shouldConfigureUebaSetting = enableUeba && deployUebaSetting
+var shouldConfigureEntitySettingViaScript = enableEntityBehavior && deployEntityBehaviorSetting && useEntityBehaviorScript
+var shouldConfigureEntitySettingNative = enableEntityBehavior && deployEntityBehaviorSetting && !useEntityBehaviorScript
+var shouldConfigureUebaSettingViaScript = enableUeba && deployUebaSetting && useUebaScript
+var shouldConfigureUebaSettingNative = enableUeba && deployUebaSetting && !useUebaScript
 var shouldConfigureAnomaliesSetting = enableAnomalies
+// Keep backward compat variables for role assignments
+var shouldConfigureEntitySetting = enableEntityBehavior && deployEntityBehaviorSetting
+var shouldConfigureUebaSetting = enableUeba && deployUebaSetting
 var shouldConfigureEntraDiagnostics = enableEntraDiagnostics && !empty(entraWorkspaceResourceId)
 
 // Entra diagnostic settings payload
@@ -207,7 +215,7 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existin
   name: workspaceName
 }
 
-resource sentinel 'Microsoft.SecurityInsights/onboardingStates@2024-03-01' = {
+resource sentinel 'Microsoft.SecurityInsights/onboardingStates@2024-01-01-preview' = {
   name: 'default'
   scope: workspace
   properties: {
@@ -215,7 +223,36 @@ resource sentinel 'Microsoft.SecurityInsights/onboardingStates@2024-03-01' = {
   }
 }
 
-resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = if (shouldConfigureEntitySetting) {
+// Native Bicep resource for Entity Analytics - deploys with user credentials (recommended)
+resource entityAnalyticsSetting 'Microsoft.SecurityInsights/settings@2024-01-01-preview' = if (shouldConfigureEntitySettingNative) {
+  name: 'EntityAnalytics'
+  kind: 'EntityAnalytics'
+  scope: workspace
+  properties: {
+    entityProviders: [
+      'AzureActiveDirectory'
+    ]
+  }
+  dependsOn: [
+    sentinel
+  ]
+}
+
+// Native Bicep resource for UEBA - deploys with user credentials (recommended)
+resource uebaSetting 'Microsoft.SecurityInsights/settings@2024-01-01-preview' = if (shouldConfigureUebaSettingNative) {
+  name: 'Ueba'
+  kind: 'Ueba'
+  scope: workspace
+  properties: {
+    dataSources: uebaDataSources
+  }
+  dependsOn: [
+    sentinel
+    entityAnalyticsSetting
+  ]
+}
+
+resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = if (shouldConfigureEntitySettingViaScript) {
   name: 'configure-entity-behavior-${uniqueString(resourceGroup().id)}'
   location: location
   kind: 'AzureCLI'
@@ -258,9 +295,10 @@ resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020
       fi
 
       if [ -n "${rc:-}" ] && [ "${rc:-0}" -ne 0 ]; then
-        if echo "$response" | grep -q "Only 'Security Administrator' and 'Global Administrator'"; then
-          echo "INFO: Entity Analytics setting requires Global Administrator or Security Administrator role." >&2
+        if echo "$response" | grep -qi "Only 'Security Administrator' and 'Global Administrator'\|User does not have required admin roles\|Unauthorized"; then
+          echo "INFO: Entity Analytics setting requires Global Administrator or Security Administrator role. Skipping." >&2
           echo "$response" >&2
+          echo '{"status":"skipped_permissions"}' > $AZ_SCRIPTS_OUTPUT_PATH
           exit 0
         fi
 
@@ -268,6 +306,7 @@ resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020
         if echo "$response" | grep -qi "changes.*disabled\|primary.*workspace\|threat protection portal"; then
           echo "INFO: Entity Analytics setting is managed by the primary workspace (Microsoft Threat Protection)." >&2
           echo "$response" >&2
+          echo '{"status":"skipped_primary_workspace"}' > $AZ_SCRIPTS_OUTPUT_PATH
           exit 0
         fi
 
@@ -287,7 +326,7 @@ resource entityBehaviorSettingScript 'Microsoft.Resources/deploymentScripts@2020
   ]
 }
 
-resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = if (shouldConfigureUebaSetting) {
+resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = if (shouldConfigureUebaSettingViaScript) {
   name: 'configure-ueba-${uniqueString(resourceGroup().id)}'
   location: location
   kind: 'AzureCLI'
@@ -333,12 +372,14 @@ resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = 
         if echo "$response" | grep -q "requires 'EntityAnalytics' to be enabled"; then
           echo "INFO: UEBA requires Entity Analytics to be enabled first." >&2
           echo "$response" >&2
+          echo '{"status":"skipped_entity_required"}' > $AZ_SCRIPTS_OUTPUT_PATH
           exit 0
         fi
 
-        if echo "$response" | grep -q "Only 'Security Administrator' and 'Global Administrator'"; then
-          echo "INFO: UEBA setting requires Global Administrator or Security Administrator role." >&2
+        if echo "$response" | grep -qi "Only 'Security Administrator' and 'Global Administrator'\|User does not have required admin roles\|Unauthorized"; then
+          echo "INFO: UEBA setting requires Global Administrator or Security Administrator role. Skipping." >&2
           echo "$response" >&2
+          echo '{"status":"skipped_permissions"}' > $AZ_SCRIPTS_OUTPUT_PATH
           exit 0
         fi
 
@@ -346,6 +387,7 @@ resource uebaSettingScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = 
         if echo "$response" | grep -qi "changes.*disabled\|primary.*workspace\|threat protection portal"; then
           echo "INFO: UEBA setting is managed by the primary workspace (Microsoft Threat Protection)." >&2
           echo "$response" >&2
+          echo '{"status":"skipped_primary_workspace"}' > $AZ_SCRIPTS_OUTPUT_PATH
           exit 0
         fi
 

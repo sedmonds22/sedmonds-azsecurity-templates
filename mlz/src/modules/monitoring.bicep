@@ -9,15 +9,17 @@ param deploymentNameSuffix string
 param deploySentinel bool
 param enableEntityBehavior bool
 param deployEntityBehaviorSetting bool
-param useEntityBehaviorScript bool = true
+param useEntityBehaviorScript bool = false
 param enableUeba bool
 param deployUebaSetting bool = true
+param useUebaScript bool = false
 param uebaDataSources array
 param enableAnomalies bool
 param deploySentinelAutomationScript bool = true
 param enableEntraDiagnostics bool = true
 param entraDiagnosticName string = 'diag-entra'
 param entraLogCategories array = []
+param enableEntraIdDataConnector bool = true
 param entraConnectorDataTypeStates object
 param tenantId string
 param sentinelAutomationPrincipalId string = ''
@@ -121,6 +123,7 @@ module sentinelSettings 'sentinel-settings.bicep' = if (deploySentinel) {
     useEntityBehaviorScript: useEntityBehaviorScript
     enableUeba: enableUeba
     deployUebaSetting: deployUebaSetting
+    useUebaScript: useUebaScript
     uebaDataSources: uebaDataSources
     enableAnomalies: enableAnomalies
     deploySentinelAutomationScript: deploySentinelAutomationScript
@@ -135,7 +138,7 @@ module sentinelSettings 'sentinel-settings.bicep' = if (deploySentinel) {
   ]
 }
 
-module sentinelConnectors 'sentinel-connectors.bicep' = if (deploySentinel) {
+module sentinelConnectors 'sentinel-connectors.bicep' = if (deploySentinel && enableEntraIdDataConnector) {
   name: 'configure-sentinel-connectors-${deploymentNameSuffix}'
   scope: resourceGroup(tier.subscriptionId, targetResourceGroupName)
   params: {
