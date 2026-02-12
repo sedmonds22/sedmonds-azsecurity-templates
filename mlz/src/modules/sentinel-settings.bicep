@@ -12,8 +12,8 @@ param enableEntityBehavior bool = true
 @description('Skip provisioning the Entity Behavior Analytics setting when it already exists to avoid concurrency conflicts.')
 param deployEntityBehaviorSetting bool = true
 
-@description('Use the deployment script to upsert Entity Behavior. Set to false to use native Bicep resource (recommended for new deployments).')
-param useEntityBehaviorScript bool = false
+@description('Use the deployment script to upsert Entity Behavior. Set to true for idempotent updates (recommended). Set to false for native Bicep (new deployments only).')
+param useEntityBehaviorScript bool = true
 
 @description('Toggle to configure UEBA data sources and ensure they participate in the ML fusion models.')
 param enableUeba bool = true
@@ -21,8 +21,8 @@ param enableUeba bool = true
 @description('Skip provisioning the UEBA setting when it already exists to avoid concurrency conflicts.')
 param deployUebaSetting bool = true
 
-@description('Use the deployment script to upsert UEBA. Set to false to use native Bicep resource (recommended for new deployments).')
-param useUebaScript bool = false
+@description('Use the deployment script to upsert UEBA. Set to true for idempotent updates (recommended). Set to false for native Bicep (new deployments only).')
+param useUebaScript bool = true
 
 @description('Data sources that enrich UEBA insights.')
 param uebaDataSources array = [

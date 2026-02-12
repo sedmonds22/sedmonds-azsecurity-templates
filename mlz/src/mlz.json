@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "342614646468870098"
+      "templateHash": "5796112515856812806"
     }
   },
   "parameters": {
@@ -5040,7 +5040,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "2860214178317060"
+              "templateHash": "1725461536458941804"
             }
           },
           "parameters": {
@@ -5643,7 +5643,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.39.26.7824",
-                      "templateHash": "17543295636910736887"
+                      "templateHash": "13330949676184667854"
                     }
                   },
                   "parameters": {
@@ -5675,9 +5675,9 @@
                     },
                     "useEntityBehaviorScript": {
                       "type": "bool",
-                      "defaultValue": false,
+                      "defaultValue": true,
                       "metadata": {
-                        "description": "Use the deployment script to upsert Entity Behavior. Set to false to use native Bicep resource (recommended for new deployments)."
+                        "description": "Use the deployment script to upsert Entity Behavior. Set to true for idempotent updates (recommended). Set to false for native Bicep (new deployments only)."
                       }
                     },
                     "enableUeba": {
@@ -5696,9 +5696,9 @@
                     },
                     "useUebaScript": {
                       "type": "bool",
-                      "defaultValue": false,
+                      "defaultValue": true,
                       "metadata": {
-                        "description": "Use the deployment script to upsert UEBA. Set to false to use native Bicep resource (recommended for new deployments)."
+                        "description": "Use the deployment script to upsert UEBA. Set to true for idempotent updates (recommended). Set to false for native Bicep (new deployments only)."
                       }
                     },
                     "uebaDataSources": {
