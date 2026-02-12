@@ -601,7 +601,7 @@ resource analyticRulesScript 'Microsoft.Resources/deploymentScripts@2020-10-01' 
       apiVersion="2024-01-01-preview"
 
       echo "INFO: Fetching analytic rules manifest from $manifestUrl"
-      manifest=$(curl -sS "$manifestUrl") || {
+      manifest=$(wget -qO- "$manifestUrl") || {
         echo "ERROR: Failed to fetch manifest from $manifestUrl" >&2
         exit 1
       }
