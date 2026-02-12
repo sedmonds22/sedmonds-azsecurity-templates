@@ -229,9 +229,7 @@
         "description": "Skip provisioning the Entity Behavior Analytics setting when it already exists to avoid concurrency conflicts."
       }
     },
-    "useEntityBehaviorScript": {
-      "type": "bool",
-      "defaultValue": true,
+    "useEntityBehaviorScript": { "type": "bool", "defaultValue": false,
       "metadata": {
         "description": "Use the deployment script to upsert Entity Behavior settings. Disable for brand new workspaces to provision the resource directly."
       }
@@ -5024,9 +5022,7 @@
             "deployEntityBehaviorSetting": {
               "type": "bool"
             },
-            "useEntityBehaviorScript": {
-              "type": "bool",
-              "defaultValue": true
+            "useEntityBehaviorScript": { "type": "bool", "defaultValue": false
             },
             "enableUeba": {
               "type": "bool"
@@ -5630,9 +5626,7 @@
                         "description": "Skip provisioning the Entity Behavior Analytics setting when it already exists to avoid concurrency conflicts."
                       }
                     },
-                    "useEntityBehaviorScript": {
-                      "type": "bool",
-                      "defaultValue": true,
+                    "useEntityBehaviorScript": { "type": "bool", "defaultValue": false,
                       "metadata": {
                         "description": "Use the deployment script (recommended when the setting already exists) to upsert Entity Behavior. Disable for brand new workspaces to provision the resource directly."
                       }
@@ -33483,3 +33477,4 @@
     }
   }
 }
+
