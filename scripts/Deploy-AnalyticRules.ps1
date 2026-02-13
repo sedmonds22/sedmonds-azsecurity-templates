@@ -38,9 +38,7 @@ param(
     [string]$WorkspaceName,
 
     [Parameter(Mandatory = $false)]
-    [string]$ManifestUrl = 'https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/content/analytic-rules-manifest.json',
-
-    [switch]$WhatIf
+    [string]$ManifestUrl = 'https://raw.githubusercontent.com/sedmonds22/sedmonds-azsecurity-templates/main/content/analytic-rules-manifest.json'
 )
 
 $ErrorActionPreference = 'Stop'
