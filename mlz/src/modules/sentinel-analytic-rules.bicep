@@ -86,12 +86,15 @@ resource analyticRulesScript 'Microsoft.Resources/deploymentScripts@2020-10-01' 
       ruleCount=$(echo "$manifest" | jq -r '.ruleCount // 0')
       echo "INFO: Found $ruleCount rules to deploy"
 
-      successCount=0
-      skipCount=0
-      errorCount=0
+      # Use temp files for counters (bash subshell issue with pipes)
+      echo "0" > /tmp/success_count
+      echo "0" > /tmp/skip_count
+      echo "0" > /tmp/error_count
 
-      # Process each rule
-      echo "$manifest" | jq -c '.rules[]' | while read -r rule; do
+      # Write rules to temp file to avoid subshell issue
+      echo "$manifest" | jq -c '.rules[]' > /tmp/rules.json
+
+      while read -r rule; do
         ruleId=$(echo "$rule" | jq -r '.id')
         ruleName=$(echo "$rule" | jq -r '.name')
         kind=$(echo "$rule" | jq -r '.kind')
@@ -104,7 +107,7 @@ resource analyticRulesScript 'Microsoft.Resources/deploymentScripts@2020-10-01' 
 
         if [ "$ruleExists" = "true" ]; then
           echo "SKIP: Rule '$ruleName' already exists"
-          skipCount=$((skipCount + 1))
+          echo $(( $(cat /tmp/skip_count) + 1 )) > /tmp/skip_count
           continue
         fi
 
@@ -155,18 +158,22 @@ resource analyticRulesScript 'Microsoft.Resources/deploymentScripts@2020-10-01' 
 
         if [ $rc -eq 0 ]; then
           echo "SUCCESS: Created rule '$ruleName'"
-          successCount=$((successCount + 1))
+          echo $(( $(cat /tmp/success_count) + 1 )) > /tmp/success_count
         else
           # Check if it's a data connector dependency error (common, not fatal)
           if echo "$response" | grep -qi "BadRequest\|data connector\|table.*not found\|table does not exist"; then
             echo "SKIP: Rule '$ruleName' - required data connector not enabled"
-            skipCount=$((skipCount + 1))
+            echo $(( $(cat /tmp/skip_count) + 1 )) > /tmp/skip_count
           else
             echo "ERROR: Failed to create rule '$ruleName': $response" >&2
-            errorCount=$((errorCount + 1))
+            echo $(( $(cat /tmp/error_count) + 1 )) > /tmp/error_count
           fi
         fi
-      done
+      done < /tmp/rules.json
+
+      successCount=$(cat /tmp/success_count)
+      skipCount=$(cat /tmp/skip_count)
+      errorCount=$(cat /tmp/error_count)
 
       echo ""
       echo "=========================================="
